@@ -464,5 +464,25 @@ PA.export = (() => {
     URL.revokeObjectURL(url);
   }
 
-  return { toPDF, toCSV };
+  /* ── JSON project export ─────────────────────────── */
+  function toJSON() {
+    const data = {
+      v: 1,
+      name:    PA.state.projectName,
+      floors:  PA.state.floors,
+      prices:  PA.state.prices,
+      savedAt: new Date().toISOString()
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = (PA.state.projectName || 'plano').replace(/\s+/g, '_') + '.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  return { toPDF, toCSV, toJSON };
 })();

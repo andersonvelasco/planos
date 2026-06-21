@@ -206,11 +206,31 @@ body {
   flex-shrink: 0;
   box-shadow: 0 2px 6px rgba(0,0,0,.4);
 }
-#view3d-toolbar span {
-  color: #94a3b8;
-  font-size: 12px;
-  flex: 1;
+#view3d-toolbar > span:first-child {
+  color: #e2e8f0;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
 }
+#view3d-floor-sel {
+  background: rgba(255,255,255,.10);
+  border: 1px solid rgba(255,255,255,.20);
+  color: #e2e8f0;
+  padding: 4px 8px;
+  border-radius: 5px;
+  font-size: 12px;
+  cursor: pointer;
+  outline: none;
+}
+#view3d-floor-sel option { background: #1e2a3a; color: #e2e8f0; }
+
+.view3d-hint-text {
+  flex: 1;
+  text-align: center;
+  font-size: 11px;
+  color: #64748b;
+}
+
 #btn-3d-close {
   background: rgba(255,255,255,.1);
   border: 1px solid rgba(255,255,255,.2);
@@ -256,6 +276,79 @@ body {
 }
 .btn-3d:hover { background: #6d28d9 !important; }
 
+/* ── TOOLBAR TOGGLE ──────────────────────────────── */
+#toolbar {
+  transition: width 0.2s ease, padding 0.2s ease, min-width 0.2s ease;
+}
+#toolbar.toolbar-hidden {
+  width: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  min-width: 0 !important;
+}
+.btn-toolbar-toggle {
+  padding: 5px 9px !important;
+  font-size: 15px !important;
+  flex-shrink: 0 !important;
+  font-weight: 600 !important;
+}
+
 /* ── UTILITIES ───────────────────────────────────── */
 .hidden { display: none !important; }
 .empty-msg { color: var(--clr-text-muted); font-size: 12px; font-style: italic; padding: 4px 0; }
+
+/* ── RESPONSIVE ─────────────────────────────────── */
+
+/* Tablets and below: panel slides in as overlay */
+@media (max-width: 900px) {
+  :root {
+    --panel-w: 260px;
+  }
+
+  #panel {
+    position: fixed;
+    right: 0;
+    top: var(--header-h);
+    bottom: 0;
+    z-index: 200;
+    transform: translateX(100%);
+    transition: transform .25s ease;
+    box-shadow: -4px 0 16px rgba(0,0,0,.18);
+  }
+  #panel.panel-open {
+    transform: translateX(0);
+  }
+
+  .btn-panel-toggle { display: flex !important; }
+
+  .header-center { display: none; }
+
+  #project-name { width: 130px; }
+}
+
+/* Already visible on desktop */
+@media (min-width: 901px) {
+  .btn-panel-toggle { display: none !important; }
+}
+
+/* Phones: compact toolbar, hide some labels */
+@media (max-width: 600px) {
+  :root {
+    --toolbar-w: 54px;
+    --header-h: 42px;
+  }
+
+  .logo-text { display: none; }
+
+  .btn-header { padding: 4px 8px; font-size: 11px; }
+
+  .tool-btn span { display: none; }
+  .tool-btn { padding: 9px 4px; }
+
+  .header-right { gap: 4px; }
+
+  /* Hide less-critical header buttons on very small screens */
+  #btn-export-csv,
+  #btn-export-json,
+  #btn-import-json { display: none; }
+}

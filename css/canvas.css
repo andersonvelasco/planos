@@ -11,6 +11,7 @@
   width: 100%;
   height: 100%;
   display: block;
+  touch-action: none;
 }
 
 /* Cursor states by tool */
@@ -26,7 +27,8 @@
 .tool-select .draggable-el { cursor: move; }
 .tool-pan     #main-svg { cursor: grab; }
 .tool-pan.panning #main-svg { cursor: grabbing; }
-.tool-stairs  #main-svg { cursor: crosshair; }
+.tool-stairs    #main-svg { cursor: crosshair; }
+.tool-furniture #main-svg { cursor: copy; }
 
 /* ── STATUS BAR ───────────────────────────────────── */
 #status-bar {

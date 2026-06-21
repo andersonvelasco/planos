@@ -366,6 +366,45 @@
   line-height: 1.5;
 }
 
+/* ── STRUCTURAL selects ─────────────────────────── */
+.struct-select-label {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 11px;
+  color: #475569;
+  padding: 2px 0;
+}
+.struct-select {
+  font-size: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  padding: 5px 6px;
+  outline: none;
+  color: var(--clr-text);
+  background: #fff;
+  cursor: pointer;
+}
+.struct-select:focus { border-color: var(--clr-accent); }
+
+/* ── Proceso constructivo ───────────────────────── */
+.struct-process {
+  margin: 4px 0 0 0;
+  padding-left: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.struct-process li {
+  font-size: 11px;
+  color: #475569;
+  line-height: 1.4;
+  padding: 2px 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+.struct-process li:last-child { border-bottom: none; }
+.struct-process li::marker { color: var(--clr-accent); font-weight: 700; }
+
 /* ── PROJECT LIST (modal) ───────────────────────── */
 .project-list { list-style: none; display: flex; flex-direction: column; gap: 6px; }
 .project-item {
@@ -386,3 +425,28 @@
   cursor: pointer; font-size: 14px; padding: 2px 4px;
 }
 .project-item-del:hover { color: #ef4444; }
+
+/* ── INSTALLATIONS ALERTS ───────────────────────── */
+.inst-alert { font-size:11px; padding:5px 7px; border-radius:4px; margin:2px 0; line-height:1.4; }
+.inst-alert--warn  { background:#fffbeb; color:#92400e; border-left:3px solid #d97706; }
+.inst-alert--error { background:#fff0f0; color:#991b1b; border-left:3px solid #dc2626; }
+.inst-alert--info  { background:#eff6ff; color:#1d4ed8; border-left:3px solid #3b82f6; }
+.inst-alert--ok    { background:#f0fdf4; color:#166534; border-left:3px solid #22c55e; }
+
+.inst-count-row {
+  display:flex; justify-content:space-between; align-items:center;
+  font-size:11px; padding:3px 0; border-bottom:1px solid #f1f5f9;
+}
+.inst-count-row:last-child { border-bottom:none; }
+.inst-count-label { color:#475569; }
+.inst-count-val   { font-weight:600; color:var(--clr-text); }
+.inst-section-sep {
+  font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.5px;
+  color:#94a3b8; padding:6px 0 2px;
+}
+
+/* ── ELECTRICAL CATALOG ─────────────────────────── */
+#elec-catalog {
+  display:flex; flex-direction:column; gap:6px;
+  max-height:280px; overflow-y:auto; padding-right:2px;
+}

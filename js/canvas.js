@@ -71,6 +71,52 @@ PA.canvas = (() => {
       }
     });
     svg.addEventListener('mouseup', () => { if (spacePan) spaceStart = null; });
+
+    // Touch support (pan + pinch-zoom)
+    let _tc = null;  // single-touch pan state
+    let _tp = null;  // two-touch pinch state
+
+    const _fakeMouse = (type, touch) =>
+      svg.dispatchEvent(new MouseEvent(type, { clientX: touch.clientX, clientY: touch.clientY, button: 0, bubbles: true }));
+
+    svg.addEventListener('touchstart', e => {
+      e.preventDefault();
+      if (e.touches.length === 1) {
+        _tc = { x: e.touches[0].clientX, y: e.touches[0].clientY, px: PA.state.pan.x, py: PA.state.pan.y };
+        _tp = null;
+        _fakeMouse('mousedown', e.touches[0]);
+      } else if (e.touches.length === 2) {
+        _tp = {
+          d: Math.hypot(e.touches[1].clientX - e.touches[0].clientX, e.touches[1].clientY - e.touches[0].clientY),
+          z: PA.state.zoom
+        };
+        _tc = null;
+      }
+    }, { passive: false });
+
+    svg.addEventListener('touchmove', e => {
+      e.preventDefault();
+      if (e.touches.length === 1 && _tc) {
+        if (PA.state.activeTool === 'select' || spacePan) {
+          PA.state.pan.x = _tc.px + (e.touches[0].clientX - _tc.x);
+          PA.state.pan.y = _tc.py + (e.touches[0].clientY - _tc.y);
+          applyTransform(); updateGrid();
+        } else {
+          _fakeMouse('mousemove', e.touches[0]);
+        }
+      } else if (e.touches.length === 2 && _tp) {
+        const d  = Math.hypot(e.touches[1].clientX - e.touches[0].clientX, e.touches[1].clientY - e.touches[0].clientY);
+        const cx = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+        const cy = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+        setZoom(_tp.z * (d / _tp.d), PA.clientToSVG(cx, cy).x, PA.clientToSVG(cx, cy).y);
+      }
+    }, { passive: false });
+
+    svg.addEventListener('touchend', e => {
+      e.preventDefault();
+      if (e.changedTouches.length > 0) _fakeMouse('mouseup', e.changedTouches[0]);
+      _tc = null; _tp = null;
+    }, { passive: false });
   }
 
   /* ── Transform ───────────────────────────────────── */
@@ -294,13 +340,46 @@ PA.canvas = (() => {
           `<select id="${id2}" style="font-size:11px;padding:2px 4px;border:1px solid #e2e8f0;border-radius:3px;max-width:90px">
             ${opts.map(o => `<option value="${o}" ${val===o?'selected':''}>${o}</option>`).join('')}
            </select>`;
+        const roomColor = r.color || '#3b82f6';
         name = 'Habitación';
         html = row('Nombre', r.name)
              + row('Área',   r.area ? r.area.toFixed(2) + ' m²' : '—')
+             + `<div class="prop-row"><span class="prop-label">Color</span><input type="color" id="room-color-picker" value="${roomColor}" style="width:36px;height:22px;border:none;padding:0;cursor:pointer;border-radius:3px;vertical-align:middle"></div>`
              + `<div class="prop-row"><span class="prop-label">Piso</span>${sel('finish-piso',['ceramica','porcelanato','madera','concreto','vinilo','ninguno'],f.piso||'ceramica')}</div>`
              + `<div class="prop-row"><span class="prop-label">Cielo raso</span>${sel('finish-cielorraso',['pintura','drywall','pvc','ninguno'],f.cieloRaso||'pintura')}</div>`
              + `<div class="prop-row"><span class="prop-label">Pintura</span>${sel('finish-pintura',['vinilo','esmalte','ninguno'],f.pintura||'vinilo')}</div>`
              + `<button class="btn-add" id="props-edit-room" style="margin-top:4px">✎ Editar nombre/área</button>`;
+        break;
+      }
+      case 'furniture': {
+        const furn = (floor.furniture || []).find(x => x.id === id);
+        if (!furn) return;
+        name = furn.label || 'Mueble';
+        html = row('Tipo', furn.label || furn.type)
+             + row('Dimensiones', furn.w.toFixed(2) + ' × ' + furn.h.toFixed(2) + ' m')
+             + row('Rotación', Math.round((furn.rotation || 0) * 180 / Math.PI) + '°')
+             + `<button class="btn-add" id="props-rotate-furn" style="margin-top:4px">↻ Rotar 90°</button>`;
+        break;
+      }
+      case 'electrical': {
+        const sym = (floor.electrical || []).find(x => x.id === id);
+        if (!sym) return;
+        const cat = PA.tools.electrical ? PA.tools.electrical.getByType(sym.type) : null;
+        name = cat ? cat.label : 'Símbolo eléctrico';
+        html = row('Tipo', name)
+             + row('Posición', sym.x.toFixed(2) + 'm, ' + sym.y.toFixed(2) + 'm');
+        break;
+      }
+      case 'pipe': {
+        const pipe = (floor.pipes || []).find(x => x.id === id);
+        if (!pipe) return;
+        const plen  = Math.hypot(pipe.x2 - pipe.x1, pipe.y2 - pipe.y1);
+        const kinds = PA.tools.pipes ? PA.tools.pipes.getKinds() : {};
+        const kl    = kinds[pipe.kind] ? kinds[pipe.kind].label : pipe.kind;
+        name = kl + ' ' + pipe.diam;
+        html = row('Tipo', kl)
+             + row('Diámetro', pipe.diam)
+             + row('Longitud', plen.toFixed(2) + ' m');
         break;
       }
       case 'dimension': {
@@ -339,6 +418,13 @@ PA.canvas = (() => {
     const delHeader = document.getElementById('props-delete');
     if (delHeader) delHeader.onclick = () => deleteSelected();
 
+    // Wire up room color picker
+    const colorPicker = document.getElementById('room-color-picker');
+    if (colorPicker) colorPicker.oninput = () => {
+      const r = floor.rooms.find(x => x.id === id);
+      if (r) { r.color = colorPicker.value; PA.canvas.render(); PA.setDirty(); }
+    };
+
     // Wire up finish selects
     const _wireFinish = (selId, key) => {
       const el = document.getElementById(selId);
@@ -355,6 +441,18 @@ PA.canvas = (() => {
     _wireFinish('finish-piso',      'piso');
     _wireFinish('finish-cielorraso','cieloRaso');
     _wireFinish('finish-pintura',   'pintura');
+
+    // Wire furniture rotate button
+    const rotBtn = document.getElementById('props-rotate-furn');
+    if (rotBtn) rotBtn.onclick = () => {
+      const furn = (floor.furniture || []).find(x => x.id === id);
+      if (!furn) return;
+      PA.saveUndo();
+      furn.rotation = ((furn.rotation || 0) + Math.PI / 2) % (Math.PI * 2);
+      [furn.w, furn.h] = [furn.h, furn.w];
+      PA.canvas.render(); PA.setDirty();
+      _showProps(type, id, floorIdx);
+    };
   }
 
   function _hideProps() {
@@ -380,7 +478,10 @@ PA.canvas = (() => {
     else if (sel.type === 'window')   remove(floor.windows, sel.id);
     else if (sel.type === 'room')      remove(floor.rooms, sel.id);
     else if (sel.type === 'dimension') remove(floor.dimensions, sel.id);
-    else if (sel.type === 'stair' && floor.stairs) remove(floor.stairs, sel.id);
+    else if (sel.type === 'stair'     && floor.stairs)     remove(floor.stairs,     sel.id);
+    else if (sel.type === 'furniture' && floor.furniture)  remove(floor.furniture,  sel.id);
+    else if (sel.type === 'electrical'&& floor.electrical) remove(floor.electrical, sel.id);
+    else if (sel.type === 'pipe'      && floor.pipes)      remove(floor.pipes,      sel.id);
 
     clearSelection();
     render();

@@ -3,6 +3,22 @@
 PA.view3d = (() => {
   let _scene = null, _camera = null, _renderer = null, _controls = null;
   let _container = null, _animId = null, _active = false;
+  let _floorMode = 'active'; // 'active' | 'all'
+
+  /* ── Colores de habitaciones ─────────────────────── */
+  const ROOM_COLS = [0x3b82f6,0x10b981,0xf59e0b,0x8b5cf6,0xef4444,0x06b6d4,0xf97316,0xec4899];
+
+  /* ── Materiales de muebles por tipo ─────────────── */
+  const FURN_COLORS = {
+    sofa:'#e2e8f0', sillon:'#e2e8f0', mesacent:'#fef3c7', mesa4p:'#fef3c7',
+    silla:'#e2e8f0', camadob:'#dbeafe', camasen:'#dbeafe', closet:'#f1f5f9',
+    nevera:'#f0f9ff', estufa:'#f1f5f9', meson:'#f1f5f9',
+    inodoro:'#e0f2fe', lavamanos:'#e0f2fe', ducha:'#e0f2fe', banera:'#e0f2fe'
+  };
+  const FURN_H = { closet:2.0, nevera:1.8, estufa:0.85, meson:0.90,
+                   mesa4p:0.75, silla:0.90, sofa:0.80, sillon:0.85,
+                   mesacent:0.45, camadob:0.55, camasen:0.55,
+                   inodoro:0.80, lavamanos:0.85, ducha:0.05, banera:0.55 };
 
   function init() {
     document.getElementById('btn-view3d').addEventListener('click', open);
@@ -10,18 +26,15 @@ PA.view3d = (() => {
   }
 
   function open() {
-    if (!window.THREE) {
-      alert('Three.js no disponible. Verifica tu conexión a internet.');
-      return;
-    }
+    if (!window.THREE) { alert('Three.js no disponible. Verifica tu conexión.'); return; }
     const floor = PA.activeFloor();
-    if (!floor || floor.walls.length === 0) {
-      alert('Dibuja paredes antes de abrir la Vista 3D.');
-      return;
-    }
+    if (!floor || floor.walls.length === 0) { alert('Dibuja paredes antes de abrir Vista 3D.'); return; }
     _active = true;
     document.getElementById('view3d-overlay').classList.remove('hidden');
     _container = document.getElementById('view3d-canvas');
+
+    // Actualizar selector de piso en toolbar
+    _syncFloorSelector();
     _build();
   }
 
@@ -35,6 +48,35 @@ PA.view3d = (() => {
     window.removeEventListener('resize', _onResize);
   }
 
+  /* ── Sincronizar selector con pisos reales ─────── */
+  function _syncFloorSelector() {
+    const sel = document.getElementById('view3d-floor-sel');
+    if (!sel) return;
+    sel.innerHTML = '<option value="active">Solo piso activo</option><option value="all">Todos los pisos</option>';
+    PA.state.floors.forEach((f, i) => {
+      const opt = document.createElement('option');
+      opt.value = i;
+      opt.textContent = f.name || ('Piso ' + (i + 1));
+      if (i === PA.state.activeFloor) opt.selected = (_floorMode === 'active');
+      sel.appendChild(opt);
+    });
+    sel.value = _floorMode;
+    sel.onchange = () => {
+      _floorMode = sel.value;
+      _rebuild();
+    };
+  }
+
+  function _rebuild() {
+    if (!_active || !_renderer) return;
+    // Limpiar objetos de escena (mantener luces y suelo)
+    const toRemove = [];
+    _scene.traverse(obj => { if (obj.isMesh && !obj.userData.ground) toRemove.push(obj); });
+    toRemove.forEach(obj => { _scene.remove(obj); if (obj.geometry) obj.geometry.dispose(); });
+    const center = _buildGeometry();
+    if (_controls) { _controls.target.copy(center); _controls.update(); }
+  }
+
   function _build() {
     const THREE = window.THREE;
     const w = _container.clientWidth  || 800;
@@ -42,79 +84,77 @@ PA.view3d = (() => {
 
     /* Scene */
     _scene = new THREE.Scene();
-    _scene.background = new THREE.Color(0xedf2f7);
-    _scene.fog = new THREE.Fog(0xedf2f7, 40, 100);
+    _scene.background = new THREE.Color(0xe8eef5);
+    _scene.fog = new THREE.FogExp2(0xe8eef5, 0.018);
 
     /* Camera */
-    _camera = new THREE.PerspectiveCamera(42, w / h, 0.05, 300);
+    _camera = new THREE.PerspectiveCamera(40, w / h, 0.05, 300);
     _camera.position.set(10, 12, 16);
 
     /* Renderer */
     _renderer = new THREE.WebGLRenderer({ antialias: true });
     _renderer.setSize(w, h);
     _renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    _renderer.shadowMap.enabled = true;
-    _renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    _renderer.shadowMap.enabled  = true;
+    _renderer.shadowMap.type     = THREE.PCFSoftShadowMap;
+    _renderer.physicallyCorrectLights = true;
     _container.appendChild(_renderer.domElement);
 
     /* OrbitControls */
     if (THREE.OrbitControls) {
       _controls = new THREE.OrbitControls(_camera, _renderer.domElement);
-      _controls.enableDamping  = true;
-      _controls.dampingFactor  = 0.07;
-      _controls.maxPolarAngle  = Math.PI * 0.47;
-      _controls.minDistance    = 1;
-      _controls.maxDistance    = 100;
+      _controls.enableDamping = true;
+      _controls.dampingFactor = 0.07;
+      _controls.maxPolarAngle = Math.PI * 0.48;
+      _controls.minDistance   = 1;
+      _controls.maxDistance   = 120;
     }
 
     /* Lights */
-    _scene.add(new THREE.AmbientLight(0xffffff, 0.60));
-    const sun = new THREE.DirectionalLight(0xfff5e0, 0.95);
-    sun.position.set(12, 22, 8);
+    _scene.add(new THREE.AmbientLight(0xffffff, 0.55));
+
+    const sun = new THREE.DirectionalLight(0xfff8e7, 1.1);
+    sun.position.set(15, 25, 10);
     sun.castShadow = true;
     sun.shadow.mapSize.setScalar(2048);
-    sun.shadow.camera.near = 0.5;
-    sun.shadow.camera.far  = 100;
-    sun.shadow.camera.top  = 30;
-    sun.shadow.camera.bottom = -30;
-    sun.shadow.camera.left   = -30;
-    sun.shadow.camera.right  = 30;
+    sun.shadow.camera.near = 0.5; sun.shadow.camera.far = 120;
+    sun.shadow.camera.top = 35; sun.shadow.camera.bottom = -35;
+    sun.shadow.camera.left = -35; sun.shadow.camera.right = 35;
     _scene.add(sun);
-    const fill = new THREE.DirectionalLight(0xc8d8f0, 0.30);
-    fill.position.set(-8, 6, -6);
+
+    const fill = new THREE.DirectionalLight(0xc8daef, 0.28);
+    fill.position.set(-10, 8, -8);
     _scene.add(fill);
 
+    const sky = new THREE.HemisphereLight(0xd0e8ff, 0xc8b88a, 0.35);
+    _scene.add(sky);
+
     /* Ground */
-    const gGeo = new THREE.PlaneGeometry(120, 120);
-    const gMat = new THREE.MeshLambertMaterial({ color: 0xdde4ed });
+    const gGeo = new THREE.PlaneGeometry(160, 160);
+    const gMat = new THREE.MeshLambertMaterial({ color: 0xcdd8e3 });
     const ground = new THREE.Mesh(gGeo, gMat);
     ground.rotation.x = -Math.PI / 2;
     ground.receiveShadow = true;
+    ground.userData.ground = true;
     _scene.add(ground);
 
-    const grid = new THREE.GridHelper(100, 100, 0xb8c4d0, 0xccd5de);
-    grid.material.opacity = 0.45;
-    grid.material.transparent = true;
+    const grid = new THREE.GridHelper(120, 120, 0xaab8c4, 0xbecad4);
+    grid.material.opacity = 0.40; grid.material.transparent = true;
+    grid.userData.ground = true;
     _scene.add(grid);
 
-    /* Build floors */
+    /* Build geometry and aim camera */
     const center = _buildGeometry();
+    if (_controls) { _controls.target.copy(center); _controls.update(); }
 
-    /* Aim camera */
-    if (_controls) {
-      _controls.target.copy(center);
-      _controls.update();
-    }
-    const span = Math.max(...PA.state.floors.map(f => {
+    const floorsToRender = _getFloorsToRender();
+    let span = 6;
+    floorsToRender.forEach(({ floor: f }) => {
       let mx = -Infinity, mn = Infinity;
       f.walls.forEach(w => { mx = Math.max(mx, w.x1, w.x2); mn = Math.min(mn, w.x1, w.x2); });
-      return mx - mn;
-    }));
-    _camera.position.set(
-      center.x + span * 0.9,
-      center.y + span * 1.0,
-      center.z + span * 1.3
-    );
+      if (isFinite(mx)) span = Math.max(span, mx - mn);
+    });
+    _camera.position.set(center.x + span * 0.9, center.y + span * 1.0, center.z + span * 1.3);
     _camera.lookAt(center);
     if (_controls) _controls.update();
 
@@ -122,116 +162,161 @@ PA.view3d = (() => {
     _animate();
   }
 
+  /* ── Qué pisos mostrar según _floorMode ─────────── */
+  function _getFloorsToRender() {
+    if (_floorMode === 'all') {
+      return PA.state.floors.map((floor, fi) => ({ floor, fi }));
+    }
+    if (_floorMode === 'active') {
+      const fi = PA.state.activeFloor;
+      return [{ floor: PA.state.floors[fi], fi }];
+    }
+    // Número de piso específico
+    const fi = parseInt(_floorMode, 10);
+    if (!isNaN(fi) && PA.state.floors[fi]) return [{ floor: PA.state.floors[fi], fi }];
+    const afi = PA.state.activeFloor;
+    return [{ floor: PA.state.floors[afi], fi: afi }];
+  }
+
+  /* ── Construcción de geometría 3D ─────────────────── */
   function _buildGeometry() {
     const THREE   = window.THREE;
-    const FLOOR_H = 3.0;   // metres between floor levels
-    const WALL_H  = 2.65;  // wall height
-    const SLAB_H  = 0.20;  // slab thickness
+    const FLOOR_H = 3.0;
+    const WALL_H  = 2.65;
+    const SLAB_H  = 0.20;
 
     const WALL_MATS = [
-      new THREE.MeshLambertMaterial({ color: 0x94a9be }),
-      new THREE.MeshLambertMaterial({ color: 0x7890aa }),
-      new THREE.MeshLambertMaterial({ color: 0x607896 })
+      new THREE.MeshPhongMaterial({ color: 0x8fa8bc, shininess: 12 }),
+      new THREE.MeshPhongMaterial({ color: 0x7090a8, shininess: 12 }),
+      new THREE.MeshPhongMaterial({ color: 0x607890, shininess: 12 })
     ];
-    const SLAB_MAT = new THREE.MeshLambertMaterial({ color: 0xb8c8d8 });
-    const ROOM_COLS = [0x3b82f6, 0x10b981, 0xf59e0b, 0x8b5cf6, 0xef4444, 0x06b6d4, 0xf97316];
+    const SLAB_MAT = new THREE.MeshPhongMaterial({ color: 0xaabccc, shininess: 8 });
+    const GLASS_MAT = new THREE.MeshPhongMaterial({
+      color: 0x9cc8e8, opacity: 0.32, transparent: true,
+      shininess: 90, specular: 0xffffff, side: THREE.DoubleSide
+    });
 
     let gMinX = Infinity, gMaxX = -Infinity;
     let gMinZ = Infinity, gMaxZ = -Infinity;
 
-    PA.state.floors.forEach((floor, fi) => {
+    const floorsToRender = _getFloorsToRender();
+
+    floorsToRender.forEach(({ floor, fi }) => {
       const baseY = fi * FLOOR_H;
-      const wallH = fi === 0 ? WALL_H : WALL_H;
+      const wallH = WALL_H;
+      const mat   = WALL_MATS[fi % WALL_MATS.length];
 
-      /* Walls with door/window openings */
+      /* Paredes con huecos para puertas y ventanas */
       floor.walls.forEach(wall => {
-        const dx = wall.x2 - wall.x1, dz = wall.y2 - wall.y1;
-        const L  = Math.hypot(dx, dz);
+        const L = Math.hypot(wall.x2 - wall.x1, wall.y2 - wall.y1);
         if (L < 0.01) return;
-
-        const mat  = WALL_MATS[fi % WALL_MATS.length];
-        const h    = wall.height || wallH;
+        const h = wall.height || wallH;
         const openings = [
-          ...floor.doors.filter(d => d.wallId === wall.id).map(d => ({ t: d.t, width: d.width, type: 'door' })),
-          ...floor.windows.filter(w => w.wallId === wall.id).map(w => ({ t: w.t, width: w.width, type: 'window' }))
+          ...floor.doors.filter(d => d.wallId === wall.id)
+            .map(d => ({ t: d.t, width: d.width || 0.9, type: 'door' })),
+          ...floor.windows.filter(w => w.wallId === wall.id)
+            .map(w => ({ t: w.t, width: w.width || 0.9, type: 'window' }))
         ];
-
-        _buildWallWithOpenings(wall, openings, baseY, h, mat);
-
+        _buildWallWithOpenings(wall, openings, baseY, h, mat, GLASS_MAT);
         [wall.x1, wall.x2].forEach(x => { gMinX = Math.min(gMinX, x); gMaxX = Math.max(gMaxX, x); });
         [wall.y1, wall.y2].forEach(z => { gMinZ = Math.min(gMinZ, z); gMaxZ = Math.max(gMaxZ, z); });
       });
 
-      /* Floor slab (above ground floor) */
+      /* Losa de entrepiso (si hay piso superior) */
       if (fi > 0 && floor.walls.length > 0) {
-        let fx1 = Infinity, fz1 = Infinity, fx2 = -Infinity, fz2 = -Infinity;
+        let fx1=Infinity, fz1=Infinity, fx2=-Infinity, fz2=-Infinity;
         floor.walls.forEach(w => {
-          fx1 = Math.min(fx1, w.x1, w.x2); fx2 = Math.max(fx2, w.x1, w.x2);
-          fz1 = Math.min(fz1, w.y1, w.y2); fz2 = Math.max(fz2, w.y1, w.y2);
+          fx1=Math.min(fx1,w.x1,w.x2); fx2=Math.max(fx2,w.x1,w.x2);
+          fz1=Math.min(fz1,w.y1,w.y2); fz2=Math.max(fz2,w.y1,w.y2);
         });
         const sw = fx2 - fx1 + 0.4, sd = fz2 - fz1 + 0.4;
-        const slabGeo = new THREE.BoxGeometry(sw, SLAB_H, sd);
-        const slab = new THREE.Mesh(slabGeo, SLAB_MAT);
-        slab.position.set((fx1 + fx2) / 2, baseY - SLAB_H / 2, (fz1 + fz2) / 2);
+        const slab = new THREE.Mesh(new THREE.BoxGeometry(sw, SLAB_H, sd), SLAB_MAT);
+        slab.position.set((fx1+fx2)/2, baseY - SLAB_H/2, (fz1+fz2)/2);
         slab.receiveShadow = true;
         _scene.add(slab);
       }
 
-      /* Room floor tiles */
+      /* Pisos de habitaciones coloreados */
       floor.rooms.forEach((room, ri) => {
         const area = room.area || 0;
         if (area < 0.5) return;
         const side = Math.sqrt(area);
-        const tGeo = new THREE.PlaneGeometry(side * 0.82, side * 0.82);
-        const tMat = new THREE.MeshLambertMaterial({
-          color: ROOM_COLS[ri % ROOM_COLS.length],
-          opacity: 0.20, transparent: true, side: THREE.DoubleSide
-        });
-        const tile = new THREE.Mesh(tGeo, tMat);
+        const col  = room.color ? parseInt(room.color.replace('#',''), 16) : ROOM_COLS[ri % ROOM_COLS.length];
+        const tMat = new THREE.MeshPhongMaterial({ color: col, opacity: 0.22, transparent: true, side: THREE.DoubleSide });
+        const tile = new THREE.Mesh(new THREE.PlaneGeometry(side * 0.80, side * 0.80), tMat);
         tile.rotation.x = -Math.PI / 2;
-        tile.position.set(room.x, baseY + 0.02, room.y);
+        tile.position.set(room.x, baseY + 0.015, room.y);
         _scene.add(tile);
       });
 
-      /* Stairs as ramps */
-      if (floor.stairs) {
-        floor.stairs.forEach(st => {
-          const sw = st.x2 - st.x1, sd = st.y2 - st.y1;
-          const rGeo = new THREE.BoxGeometry(sw, 0.08, sd);
-          const rMat = new THREE.MeshLambertMaterial({ color: 0xc0a070 });
-          const ramp = new THREE.Mesh(rGeo, rMat);
-          ramp.position.set((st.x1 + st.x2) / 2, baseY + 0.04, (st.y1 + st.y2) / 2);
-          _scene.add(ramp);
-        });
-      }
+      /* Escaleras (rampa simple) */
+      (floor.stairs || []).forEach(st => {
+        const sw = Math.abs(st.x2 - st.x1), sd = Math.abs(st.y2 - st.y1);
+        if (sw < 0.1 || sd < 0.1) return;
+        const rMat = new THREE.MeshPhongMaterial({ color: 0xc09a6a, shininess: 20 });
+        const ramp = new THREE.Mesh(new THREE.BoxGeometry(sw, 0.1, sd), rMat);
+        ramp.position.set((st.x1+st.x2)/2, baseY + 0.05, (st.y1+st.y2)/2);
+        ramp.castShadow = true;
+        _scene.add(ramp);
+        // Peldaños como líneas de cajas planas
+        const steps = st.steps || 10;
+        const stepD = sd / steps;
+        const stepH = wallH / steps;
+        for (let s = 0; s < steps; s++) {
+          const sg = new THREE.BoxGeometry(sw - 0.04, 0.04, stepD - 0.02);
+          const sm = new THREE.Mesh(sg, new THREE.MeshPhongMaterial({ color: 0xb08058 }));
+          sm.position.set((st.x1+st.x2)/2, baseY + stepH * s + 0.04, st.y1 + stepD * s + stepD/2);
+          _scene.add(sm);
+        }
+      });
+
+      /* Mobiliario */
+      _buildFurniture(floor, baseY, THREE);
     });
 
     const cx = isFinite(gMinX) ? (gMinX + gMaxX) / 2 : 3;
     const cz = isFinite(gMinZ) ? (gMinZ + gMaxZ) / 2 : 6;
-    const cy = (PA.state.floors.length * FLOOR_H) / 2;
+    const cy = floorsToRender.length > 0
+      ? ((Math.max(...floorsToRender.map(f => f.fi)) + 1) * FLOOR_H) / 2
+      : 1.5;
     return new THREE.Vector3(cx, cy, cz);
   }
 
-  /* Builds a wall as multiple BoxGeometry panels to cut holes for doors/windows */
-  function _buildWallWithOpenings(wall, openings, baseY, wallH, mat) {
-    const THREE   = window.THREE;
+  /* ── Mobiliario 3D (cajas coloreadas) ────────────── */
+  function _buildFurniture(floor, baseY, THREE) {
+    (floor.furniture || []).forEach(item => {
+      const fh = FURN_H[item.type] || 0.80;
+      const col = parseInt((FURN_COLORS[item.type] || '#e2e8f0').replace('#',''), 16);
+      const mat = new THREE.MeshPhongMaterial({ color: col, shininess: 30 });
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(item.w, fh, item.h), mat);
+      mesh.castShadow = true;
+      const rot = item.rotation || 0;
+      const cx  = item.x + Math.cos(rot) * 0 - Math.sin(rot) * 0;
+      const cz  = item.y + Math.sin(rot) * 0 + Math.cos(rot) * 0;
+      mesh.position.set(cx, baseY + fh / 2, cz);
+      mesh.rotation.y = -rot;
+      _scene.add(mesh);
+    });
+  }
+
+  /* ── Pared con huecos para puertas/ventanas ─────── */
+  function _buildWallWithOpenings(wall, openings, baseY, wallH, mat, glassMat) {
+    const THREE  = window.THREE;
     const dx = wall.x2 - wall.x1, dz = wall.y2 - wall.y1;
     const L  = Math.hypot(dx, dz);
     if (L < 0.01) return;
-    const ux    = dx / L, uz = dz / L;
-    const angle = -Math.atan2(dz, dx);
+    const ux     = dx / L, uz = dz / L;
+    const angle  = -Math.atan2(dz, dx);
     const thick  = wall.thickness || 0.15;
     const DOOR_H = Math.min(2.1, wallH);
     const WIN_SILL = 0.9, WIN_TOP = Math.min(2.1, wallH);
 
-    // Convert each opening to [tStart, tEnd] fractions, clamped to [0,1]
     const gaps = openings.map(op => ({
       tStart: Math.max(0, op.t - op.width / (2 * L)),
       tEnd:   Math.min(1, op.t + op.width / (2 * L)),
       type:   op.type
     })).sort((a, b) => a.tStart - b.tStart);
 
-    // Build list of solid intervals (between gaps)
     const solids = [];
     let cur = 0;
     for (const g of gaps) {
@@ -240,12 +325,11 @@ PA.view3d = (() => {
     }
     if (cur < 1 - 0.002) solids.push({ tStart: cur, tEnd: 1 });
 
-    const addPanel = (tS, tE, yBot, h) => {
+    const addPanel = (tS, tE, yBot, h, m) => {
       const segLen = (tE - tS) * L;
       if (segLen < 0.002 || h < 0.002) return;
-      const ct = (tS + tE) / 2;
-      const geo  = new THREE.BoxGeometry(segLen, h, thick);
-      const mesh = new THREE.Mesh(geo, mat);
+      const ct   = (tS + tE) / 2;
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(segLen, h, thick), m || mat);
       mesh.castShadow = mesh.receiveShadow = true;
       mesh.position.set(wall.x1 + ux * ct * L, baseY + yBot + h / 2, wall.y1 + uz * ct * L);
       mesh.rotation.y = angle;
@@ -255,10 +339,12 @@ PA.view3d = (() => {
     solids.forEach(s => addPanel(s.tStart, s.tEnd, 0, wallH));
     gaps.forEach(g => {
       if (g.type === 'door') {
-        if (wallH > DOOR_H) addPanel(g.tStart, g.tEnd, DOOR_H, wallH - DOOR_H); // lintel only
+        if (wallH > DOOR_H) addPanel(g.tStart, g.tEnd, DOOR_H, wallH - DOOR_H);
       } else {
-        addPanel(g.tStart, g.tEnd, 0, WIN_SILL);                                  // sill
-        if (wallH > WIN_TOP) addPanel(g.tStart, g.tEnd, WIN_TOP, wallH - WIN_TOP); // lintel
+        addPanel(g.tStart, g.tEnd, 0, WIN_SILL);
+        // Vidrio de ventana
+        addPanel(g.tStart, g.tEnd, WIN_SILL, WIN_TOP - WIN_SILL, glassMat);
+        if (wallH > WIN_TOP) addPanel(g.tStart, g.tEnd, WIN_TOP, wallH - WIN_TOP);
       }
     });
   }
@@ -274,8 +360,7 @@ PA.view3d = (() => {
     if (!_renderer || !_container || !_camera) return;
     const w = _container.clientWidth, h = _container.clientHeight;
     if (!w || !h) return;
-    _camera.aspect = w / h;
-    _camera.updateProjectionMatrix();
+    _camera.aspect = w / h; _camera.updateProjectionMatrix();
     _renderer.setSize(w, h);
   }
 

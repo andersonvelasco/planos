@@ -54,6 +54,18 @@ PA.tools.select = (() => {
         const el = floor.stairs ? floor.stairs.find(x => x.id === id) : null;
         return el ? { x1: el.x1, y1: el.y1, x2: el.x2, y2: el.y2 } : null;
       }
+      case 'furniture': {
+        const el = floor.furniture ? floor.furniture.find(x => x.id === id) : null;
+        return el ? { x: el.x, y: el.y } : null;
+      }
+      case 'electrical': {
+        const el = floor.electrical ? floor.electrical.find(x => x.id === id) : null;
+        return el ? { x: el.x, y: el.y } : null;
+      }
+      case 'pipe': {
+        const el = floor.pipes ? floor.pipes.find(x => x.id === id) : null;
+        return el ? { x1: el.x1, y1: el.y1, x2: el.x2, y2: el.y2 } : null;
+      }
     }
     return null;
   }
@@ -131,6 +143,27 @@ PA.tools.select = (() => {
       }
       case 'stair': {
         const el = floor.stairs ? floor.stairs.find(x => x.id === id) : null;
+        if (!el) break;
+        el.x1 = snapshot.x1 + dx; el.y1 = snapshot.y1 + dy;
+        el.x2 = snapshot.x2 + dx; el.y2 = snapshot.y2 + dy;
+        break;
+      }
+      case 'furniture': {
+        const el = floor.furniture ? floor.furniture.find(x => x.id === id) : null;
+        if (!el) break;
+        el.x = snapshot.x + dx;
+        el.y = snapshot.y + dy;
+        break;
+      }
+      case 'electrical': {
+        const el = floor.electrical ? floor.electrical.find(x => x.id === id) : null;
+        if (!el) break;
+        el.x = snapshot.x + dx;
+        el.y = snapshot.y + dy;
+        break;
+      }
+      case 'pipe': {
+        const el = floor.pipes ? floor.pipes.find(x => x.id === id) : null;
         if (!el) break;
         el.x1 = snapshot.x1 + dx; el.y1 = snapshot.y1 + dy;
         el.x2 = snapshot.x2 + dx; el.y2 = snapshot.y2 + dy;

@@ -69,7 +69,10 @@ const PA = (() => {
       windows: [],
       rooms: [],
       dimensions: [],
-      stairs: []
+      stairs: [],
+      furniture: [],
+      electrical: [],
+      pipes: []
     };
   }
 
@@ -300,6 +303,14 @@ const PA = (() => {
     document.getElementById('btn-save').onclick   = () => PA.storage.save();
     document.getElementById('btn-export').onclick     = () => PA.export.toPDF();
     document.getElementById('btn-export-csv').onclick = () => PA.export.toCSV();
+    document.getElementById('btn-export-json').onclick = () => PA.export.toJSON();
+    document.getElementById('btn-import-json').onclick = () => PA.storage.importJSON();
+
+    // Panel toggle for mobile
+    const panelToggle = document.getElementById('btn-toggle-panel');
+    if (panelToggle) panelToggle.onclick = () => document.getElementById('panel').classList.toggle('panel-open');
+    const toolbarToggle = document.getElementById('btn-toggle-toolbar');
+    if (toolbarToggle) toolbarToggle.onclick = () => document.getElementById('toolbar').classList.toggle('toolbar-hidden');
 
     // Panel collapses
     document.querySelectorAll('.panel-section-header').forEach(h => {
@@ -391,6 +402,12 @@ const PA = (() => {
     document.getElementById('door-props').classList.toggle('hidden', tool !== 'door');
     document.getElementById('window-props').classList.toggle('hidden', tool !== 'window');
     document.getElementById('stairs-props').classList.toggle('hidden', tool !== 'stairs');
+    const furnPanel  = document.getElementById('furniture-props');
+    if (furnPanel)  furnPanel.classList.toggle('hidden', tool !== 'furniture');
+    const elecPanel  = document.getElementById('electrical-props');
+    if (elecPanel)  elecPanel.classList.toggle('hidden', tool !== 'electrical');
+    const pipesPanel = document.getElementById('pipes-props');
+    if (pipesPanel) pipesPanel.classList.toggle('hidden', tool !== 'pipes');
 
     // Update body class for cursor
     document.body.className = 'tool-' + tool;
@@ -404,7 +421,10 @@ const PA = (() => {
       room:      'Clic para colocar etiqueta de habitación',
       dimension: 'Clic en punto A · Clic en punto B para crear cota',
       stairs:    'Clic punto inicial · Clic punto final para dibujar caja de escaleras',
-      erase:     'Clic en cualquier elemento para eliminarlo'
+      erase:     'Clic en cualquier elemento para eliminarlo',
+      furniture:  'Selecciona un mueble del panel y haz clic para colocar · Clic derecho: rotar/eliminar',
+      electrical: 'Selecciona símbolo eléctrico y haz clic en el plano para colocar (RETIE)',
+      pipes:      'Selecciona tipo y diámetro · Clic pt.A → clic pt.B · Doble clic para terminar cadena'
     };
     document.getElementById('tool-hint').textContent = hints[tool] || '';
 
@@ -442,6 +462,9 @@ const PA = (() => {
     else if (key === 'm') setTool('dimension');
     else if (key === 's') setTool('stairs');
     else if (key === 'e') setTool('erase');
+    else if (key === 'i') setTool('furniture');
+    else if (key === 'l') setTool('electrical');
+    else if (key === 'p') setTool('pipes');
     else if (key === 'delete' || key === 'backspace') {
       if (state.selection) PA.canvas.deleteSelected();
     }
@@ -475,6 +498,7 @@ document.addEventListener('DOMContentLoaded', () => {
   PA.costs.init();
   PA.storage.init();
   PA.structural.init();
+  PA.installations.init();
   PA.view3d.init();
   PA.init();
 

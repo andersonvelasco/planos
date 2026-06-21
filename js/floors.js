@@ -38,6 +38,9 @@ PA.floors = (() => {
       renderRooms(floor, g, idx);
       renderDimensions(floor, g, idx);
       renderStairs(floor, g, idx);
+      renderFurniture(floor, g, idx);
+      renderPipes(floor, g, idx);
+      renderElectrical(floor, g, idx);
 
       group.appendChild(g);
     });
@@ -319,12 +322,22 @@ PA.floors = (() => {
     });
   }
 
+  const ROOM_PALETTE = ['#3b82f6','#10b981','#f59e0b','#8b5cf6','#ef4444','#06b6d4','#f97316','#ec4899'];
+
   /* ── Rooms ───────────────────────────────────────── */
   function renderRooms(floor, parentGroup, floorIdx) {
-    const COLORS = ['#3b82f6','#10b981','#f59e0b','#8b5cf6','#ef4444','#06b6d4','#f97316'];
     floor.rooms.forEach((room, i) => {
       const g = svgEl('g', { id: room.id, class: 'room-label-group draggable-el', 'data-selectable': '1' });
-      const color = COLORS[i % COLORS.length];
+      const color = room.color || ROOM_PALETTE[i % ROOM_PALETTE.length];
+
+      // Colored fill area sized by room area
+      if (room.area > 0.5) {
+        const r = Math.min(Math.sqrt(room.area / Math.PI) * 0.88, 5);
+        g.appendChild(svgEl('ellipse', {
+          cx: room.x, cy: room.y, rx: r, ry: r * 0.82,
+          fill: color + '20', stroke: color + '40', 'stroke-width': 0.022
+        }));
+      }
 
       const nameLen = room.name.length * 0.18 + 0.3;
       const boxW = Math.max(nameLen, 1.2), boxH = 0.65;
@@ -332,7 +345,7 @@ PA.floors = (() => {
       g.appendChild(svgEl('rect', {
         x: room.x - boxW/2, y: room.y - boxH/2,
         width: boxW, height: boxH, rx: 0.08,
-        fill: color + '18', stroke: color + '55', 'stroke-width': 0.03,
+        fill: color + '28', stroke: color + '66', 'stroke-width': 0.03,
         class: 'room-bg-rect'
       }));
 
@@ -412,10 +425,9 @@ PA.floors = (() => {
       total.classList.add('hidden');
       return;
     }
-    const COLORS = ['#3b82f6','#10b981','#f59e0b','#8b5cf6','#ef4444','#06b6d4','#f97316'];
     list.innerHTML = floor.rooms.map((r, i) => `
       <div class="room-item" data-rid="${r.id}">
-        <div class="room-color-dot" style="background:${COLORS[i % COLORS.length]}"></div>
+        <div class="room-color-dot" style="background:${r.color || ROOM_PALETTE[i % ROOM_PALETTE.length]}"></div>
         <div class="room-info">
           <div class="room-name">${r.name}</div>
           <div class="room-area">${r.area ? r.area.toFixed(1) + ' m²' : '—'}</div>
@@ -484,37 +496,51 @@ PA.floors = (() => {
 
     floor.stairs.forEach(st => {
       const g = svgEl('g', { id: st.id, class: 'stair-group draggable-el', 'data-selectable': '1' });
-      const { x1, y1, x2, y2, steps = 10, horiz = true, direction = 'up' } = st;
+      const { x1, y1, x2, y2, steps = 10, horiz = true, direction = 'up', shape = 'straight' } = st;
       const w = x2-x1, h = y2-y1;
+      const cx = x1+w/2;
 
-      g.appendChild(svgEl('rect', { x:x1,y:y1,width:w,height:h, class:'stair-fill','stroke-width':0.030 }));
+      const color    = '#6366f1';
+      const fill     = 'rgba(99,102,241,0.09)';
+      const landFill = 'rgba(99,102,241,0.22)';
 
-      if (horiz) {
-        const interval = w / steps;
-        for (let i = 1; i < steps; i++) {
-          const lx = x1 + i * interval;
-          g.appendChild(svgEl('line', { x1:lx,y1,x2:lx,y2, class:'stair-step','stroke-width':0.018 }));
+      if (shape === 'l-right' || shape === 'l-left' || shape === 'u') {
+        // Transparent hit area for the full bounding box (enables hover/click)
+        g.appendChild(svgEl('rect', { x:x1,y:y1,width:w,height:h, fill:'transparent', stroke:'none', 'pointer-events':'fill' }));
+        if (PA.tools.stairs && PA.tools.stairs._drawShape) {
+          PA.tools.stairs._drawShape({ appendChild: el => g.appendChild(el) },
+            x1, y1, x2, y2, w, h, steps, shape, color, fill, landFill);
         }
       } else {
-        const interval = h / steps;
-        for (let i = 1; i < steps; i++) {
-          const ly = y1 + i * interval;
-          g.appendChild(svgEl('line', { x1,y1:ly,x2,y2:ly, class:'stair-step','stroke-width':0.018 }));
+        // Straight stair
+        g.appendChild(svgEl('rect', { x:x1,y:y1,width:w,height:h, class:'stair-fill','stroke-width':0.030 }));
+        if (horiz) {
+          const interval = w / steps;
+          for (let i = 1; i < steps; i++) {
+            const lx = x1 + i * interval;
+            g.appendChild(svgEl('line', { x1:lx,y1,x2:lx,y2, class:'stair-step','stroke-width':0.018 }));
+          }
+        } else {
+          const interval = h / steps;
+          for (let i = 1; i < steps; i++) {
+            const ly = y1 + i * interval;
+            g.appendChild(svgEl('line', { x1,y1:ly,x2,y2:ly, class:'stair-step','stroke-width':0.018 }));
+          }
         }
+        // Direction arrow
+        const cy = y1+h/2;
+        const arrowLen = Math.min(w,h) * 0.30;
+        const aDir = direction === 'down' ? 1 : -1;
+        const ay1 = cy - arrowLen*aDir, ay2 = cy + arrowLen*aDir;
+        const tip = 0.12;
+        g.appendChild(svgEl('line', { x1:cx,y1:ay1,x2:cx,y2:ay2, class:'stair-step','stroke-width':0.025 }));
+        g.appendChild(svgEl('line', { x1:cx-tip,y1:ay2-tip*aDir,x2:cx,y2:ay2, class:'stair-step','stroke-width':0.025 }));
+        g.appendChild(svgEl('line', { x1:cx+tip,y1:ay2-tip*aDir,x2:cx,y2:ay2, class:'stair-step','stroke-width':0.025 }));
       }
 
-      // Direction arrow
-      const cx = x1+w/2, cy = y1+h/2;
-      const arrowLen = Math.min(w,h) * 0.30;
-      const aDir = direction === 'down' ? 1 : -1;
-      const ay1 = cy - arrowLen*aDir, ay2 = cy + arrowLen*aDir;
-      const tip = 0.12;
-      g.appendChild(svgEl('line', { x1:cx,y1:ay1,x2:cx,y2:ay2, class:'stair-step','stroke-width':0.025 }));
-      g.appendChild(svgEl('line', { x1:cx-tip,y1:ay2-tip*aDir,x2:cx,y2:ay2, class:'stair-step','stroke-width':0.025 }));
-      g.appendChild(svgEl('line', { x1:cx+tip,y1:ay2-tip*aDir,x2:cx,y2:ay2, class:'stair-step','stroke-width':0.025 }));
-
+      const shapeTag = shape === 'l-right' || shape === 'l-left' ? ' (L)' : shape === 'u' ? ' (U)' : '';
       const lbl = svgEl('text', { x:cx,y:y1-0.09,'text-anchor':'middle',class:'stair-label','font-size':'0.20','font-family':'system-ui,sans-serif' });
-      lbl.textContent = `Escal. ${steps} peld.`;
+      lbl.textContent = `Escal.${shapeTag} ${steps}p.`;
       g.appendChild(lbl);
 
       g.addEventListener('mousedown', e => {
@@ -544,6 +570,174 @@ PA.floors = (() => {
 
       parentGroup.appendChild(g);
     });
+  }
+
+  /* ── Furniture ──────────────────────────────────── */
+  function renderFurniture(floor, parentGroup, floorIdx) {
+    if (!floor.furniture || floor.furniture.length === 0) return;
+    floor.furniture.forEach(item => {
+      const rot = item.rotation || 0;
+      const deg = rot * 180 / Math.PI;
+      const g = svgEl('g', {
+        id: item.id,
+        class: 'furniture-group draggable-el',
+        'data-selectable': '1',
+        transform: `translate(${item.x},${item.y}) rotate(${deg.toFixed(2)}) translate(${(-item.w/2).toFixed(4)},${(-item.h/2).toFixed(4)})`
+      });
+
+      if (PA.tools.furniture) {
+        g.innerHTML = PA.tools.furniture._svgSymbolHTML(item.type, 0, 0, item.w, item.h);
+      } else {
+        g.innerHTML = `<rect x="0" y="0" width="${item.w}" height="${item.h}" fill="#f1f5f9" stroke="#94a3b8" stroke-width="0.03"/>`;
+      }
+
+      const lbl = svgEl('text', {
+        x: (item.w/2).toFixed(4), y: (item.h + 0.20).toFixed(4),
+        'text-anchor': 'middle', fill: '#64748b',
+        'font-size': '0.18px', 'font-family': 'system-ui,sans-serif'
+      });
+      lbl.textContent = item.label || item.type;
+      g.appendChild(lbl);
+
+      g.appendChild(svgEl('rect', {
+        x: 0, y: 0, width: item.w, height: item.h,
+        fill: 'transparent', stroke: 'none'
+      }));
+
+      g.addEventListener('mousedown', e => {
+        if (_startDrag('furniture', item.id, floorIdx, e)) e.stopPropagation();
+      });
+      g.addEventListener('click', e => {
+        if (PA.state.activeTool === 'erase') {
+          e.stopPropagation();
+          PA.saveUndo();
+          PA.state.floors[floorIdx].furniture = PA.state.floors[floorIdx].furniture.filter(f => f.id !== item.id);
+          PA.canvas.render(); PA.setDirty();
+        }
+      });
+      g.addEventListener('contextmenu', e => {
+        e.preventDefault(); e.stopPropagation();
+        PA.contextMenu(e.clientX, e.clientY, [
+          { label: 'Rotar 90°', action: () => {
+            PA.saveUndo();
+            item.rotation = ((item.rotation || 0) + Math.PI / 2) % (Math.PI * 2);
+            [item.w, item.h] = [item.h, item.w];
+            PA.canvas.render(); PA.setDirty();
+          }},
+          null,
+          { label: 'Eliminar mueble', danger: true, action: () => {
+            PA.saveUndo();
+            PA.state.floors[floorIdx].furniture = PA.state.floors[floorIdx].furniture.filter(f => f.id !== item.id);
+            PA.canvas.render(); PA.setDirty();
+          }}
+        ]);
+      });
+
+      parentGroup.appendChild(g);
+    });
+  }
+
+  /* ── Electrical symbols ─────────────────────────── */
+  function renderElectrical(floor, parentGroup, floorIdx) {
+    const elec = floor.electrical || [];
+    if (!elec.length) return;
+    const g = svgEl('g', { class: 'elec-layer' });
+    elec.forEach(item => {
+      const ig = svgEl('g', { id: item.id, class: 'elec-symbol draggable-el', 'data-selectable': '1' });
+      if (PA.tools.electrical) {
+        ig.innerHTML = PA.tools.electrical.svgHTML(item.type, item.x, item.y, PA.tools.electrical.SZ);
+      }
+      ig.addEventListener('mousedown', e => {
+        if (_startDrag('electrical', item.id, floorIdx, e)) e.stopPropagation();
+      });
+      ig.addEventListener('click', e => {
+        if (PA.state.activeTool === 'erase') {
+          e.stopPropagation();
+          PA.saveUndo();
+          PA.state.floors[floorIdx].electrical = PA.state.floors[floorIdx].electrical.filter(x => x.id !== item.id);
+          PA.canvas.render(); PA.setDirty();
+        }
+      });
+      ig.addEventListener('contextmenu', e => {
+        e.preventDefault(); e.stopPropagation();
+        PA.contextMenu(e.clientX, e.clientY, [
+          { label: 'Eliminar símbolo', danger: true, action: () => {
+            PA.saveUndo();
+            PA.state.floors[floorIdx].electrical = PA.state.floors[floorIdx].electrical.filter(x => x.id !== item.id);
+            PA.canvas.render(); PA.setDirty();
+          }}
+        ]);
+      });
+      g.appendChild(ig);
+    });
+    parentGroup.appendChild(g);
+  }
+
+  /* ── Pipes ──────────────────────────────────────── */
+  function renderPipes(floor, parentGroup, floorIdx) {
+    const pipes = floor.pipes || [];
+    if (!pipes.length) return;
+    const KINDS = PA.tools.pipes ? PA.tools.pipes.getKinds() : {};
+    const g = svgEl('g', { class: 'pipes-layer' });
+    pipes.forEach(pipe => {
+      const k   = KINDS[pipe.kind] || { color: '#64748b', dash: false, lw: 0.04 };
+      const len = Math.hypot(pipe.x2 - pipe.x1, pipe.y2 - pipe.y1);
+      if (len < 0.02) return;
+      const pg = svgEl('g', { id: pipe.id, class: 'pipe-group draggable-el', 'data-selectable': '1' });
+
+      const line = svgEl('line', {
+        x1: pipe.x1, y1: pipe.y1, x2: pipe.x2, y2: pipe.y2,
+        stroke: k.color,
+        'stroke-width': k.lw,
+        'stroke-dasharray': k.dash ? '0.18,0.09' : 'none',
+        'stroke-linecap': 'round'
+      });
+      pg.appendChild(line);
+
+      // Etiqueta de diámetro en el punto medio
+      const mx = (pipe.x1 + pipe.x2) / 2, my = (pipe.y1 + pipe.y2) / 2;
+      const angle = Math.atan2(pipe.y2 - pipe.y1, pipe.x2 - pipe.x1) * 180 / Math.PI;
+      const normAngle = angle > 90 || angle < -90 ? angle + 180 : angle;
+      const lbl = svgEl('text', {
+        x: mx, y: my - 0.09,
+        'font-size': '0.13', 'font-family': 'system-ui,sans-serif', 'font-weight': '600',
+        'text-anchor': 'middle', fill: k.color,
+        transform: `rotate(${normAngle.toFixed(1)},${mx},${my})`
+      });
+      lbl.textContent = pipe.diam;
+      pg.appendChild(lbl);
+
+      // Hit area invisible más ancha para facilitar selección
+      const hit = svgEl('line', {
+        x1: pipe.x1, y1: pipe.y1, x2: pipe.x2, y2: pipe.y2,
+        stroke: 'transparent', 'stroke-width': 0.25, 'stroke-linecap': 'round'
+      });
+      pg.appendChild(hit);
+
+      pg.addEventListener('mousedown', e => {
+        if (_startDrag('pipe', pipe.id, floorIdx, e)) e.stopPropagation();
+      });
+      pg.addEventListener('click', e => {
+        if (PA.state.activeTool === 'erase') {
+          e.stopPropagation();
+          PA.saveUndo();
+          PA.state.floors[floorIdx].pipes = PA.state.floors[floorIdx].pipes.filter(p => p.id !== pipe.id);
+          PA.canvas.render(); PA.setDirty();
+        }
+      });
+      pg.addEventListener('contextmenu', e => {
+        e.preventDefault(); e.stopPropagation();
+        PA.contextMenu(e.clientX, e.clientY, [
+          { label: 'Eliminar tubería', danger: true, action: () => {
+            PA.saveUndo();
+            PA.state.floors[floorIdx].pipes = PA.state.floors[floorIdx].pipes.filter(p => p.id !== pipe.id);
+            PA.canvas.render(); PA.setDirty();
+          }}
+        ]);
+      });
+      g.appendChild(pg);
+    });
+    parentGroup.appendChild(g);
   }
 
   /* ── Floor list (panel) ──────────────────────────── */
@@ -656,7 +850,11 @@ PA.floors = (() => {
           // Avoid placing on top of existing room
           const duplicate = floor.rooms.some(r => Math.hypot(r.x - face.cx, r.y - face.cy) < 0.5);
           if (!duplicate) {
-            floor.rooms.push({ id: PA.uid('r'), name, area: face.area, x: face.cx, y: face.cy });
+            floor.rooms.push({
+              id: PA.uid('r'), name, area: face.area, x: face.cx, y: face.cy,
+              color: ROOM_PALETTE[floor.rooms.length % ROOM_PALETTE.length],
+              finishes: { piso: 'ceramica', cieloRaso: 'pintura', pintura: 'vinilo' }
+            });
             added++;
           }
         });

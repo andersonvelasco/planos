@@ -64,13 +64,24 @@ PA.storage = (() => {
     return load(lastId);
   }
 
+  function _normalizeFloors(floors) {
+    floors.forEach(f => {
+      if (!f.stairs)      f.stairs      = [];
+      if (!f.furniture)   f.furniture   = [];
+      if (!f.electrical)  f.electrical  = [];
+      if (!f.pipes)       f.pipes       = [];
+      f.rooms.forEach(r => {
+        if (!r.finishes) r.finishes = { piso:'ceramica', cieloRaso:'pintura', pintura:'vinilo' };
+      });
+    });
+  }
+
   function applySnapshot(snap) {
     PA.state.projectId   = snap.id;
     PA.state.projectName = snap.name;
     PA.state.floors      = snap.floors;
     PA.state.activeFloor = snap.activeFloor || 0;
-    // Normalize floors for forward-compatibility
-    PA.state.floors.forEach(f => { if (!f.stairs) f.stairs = []; });
+    _normalizeFloors(PA.state.floors);
     PA.state.zoom        = snap.zoom  || 1;
     PA.state.pan         = snap.pan   || { x: 120, y: 80 };
     Object.assign(PA.state.prices, snap.prices || {});
@@ -297,5 +308,39 @@ PA.storage = (() => {
     toast._timer = setTimeout(() => { toast.style.opacity = '0'; }, 2000);
   }
 
-  return { init, save, load, loadLast, newProject, createDemo, showOpenModal };
+  /* ── Importar desde archivo JSON ─────────────────── */
+  function importJSON() {
+    const input = document.createElement('input');
+    input.type   = 'file';
+    input.accept = '.json,application/json';
+    input.onchange = e => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = ev => {
+        try {
+          const data = JSON.parse(ev.target.result);
+          if (!data.floors || !Array.isArray(data.floors)) throw new Error('Formato inválido');
+          PA.state.projectId   = null;
+          PA.state.projectName = data.name || 'Proyecto importado';
+          PA.state.floors      = data.floors;
+          _normalizeFloors(PA.state.floors);
+          PA.state.activeFloor = 0;
+          if (data.prices) Object.assign(PA.state.prices, data.prices);
+          document.getElementById('project-name').value = PA.state.projectName;
+          document.title = PA.state.projectName + ' — PlanoApp';
+          PA.canvas.render();
+          PA.emit('floorChanged');
+          PA.clearDirty();
+          showToast('Proyecto importado: ' + PA.state.projectName);
+        } catch (err) {
+          alert('Error al importar: ' + err.message);
+        }
+      };
+      reader.readAsText(file);
+    };
+    input.click();
+  }
+
+  return { init, save, load, loadLast, newProject, createDemo, showOpenModal, importJSON };
 })();
