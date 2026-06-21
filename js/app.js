@@ -298,7 +298,8 @@ const PA = (() => {
     document.getElementById('btn-new').onclick    = () => PA.storage.newProject();
     document.getElementById('btn-open').onclick   = () => PA.storage.showOpenModal();
     document.getElementById('btn-save').onclick   = () => PA.storage.save();
-    document.getElementById('btn-export').onclick = () => PA.export.toPDF();
+    document.getElementById('btn-export').onclick     = () => PA.export.toPDF();
+    document.getElementById('btn-export-csv').onclick = () => PA.export.toCSV();
 
     // Panel collapses
     document.querySelectorAll('.panel-section-header').forEach(h => {

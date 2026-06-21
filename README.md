@@ -35,13 +35,15 @@ Al seleccionar cualquier elemento aparece un panel con sus propiedades (longitud
 - **Auto-detección de espacios**: botón "Auto-detectar espacios" encuentra todos los polígonos cerrados del plano
 - **Materiales**: bloques, cemento, arena, gravilla, varilla, malla electrosoldada, **dinteles automáticos** por cada vano de puerta/ventana
 - **Presupuesto en COP**: materiales + mano de obra + 10% imprevistos (precios editables)
+- **Acabados por habitación**: cada cuarto tiene selectores de piso (cerámica, porcelanato, madera…), cielo raso y pintura; el costo se suma automáticamente al presupuesto
 - **Diseño estructural**: columnas detectadas automáticamente, zapatas y vigas de amarre (NSR-10 referencial)
 
 ### Proyectos
 - Guardar/cargar en `localStorage`
 - **Autoguardado** cada 60 segundos
 - **Deshacer/Rehacer** (Ctrl+Z / Ctrl+Y) — 50 pasos
-- Exportar PDF (plano + materiales + presupuesto)
+- Exportar PDF (plano + materiales + presupuesto + acabados)
+- **Exportar CSV** (⬇ CSV) — abre directamente en Excel con secciones de materiales, mano de obra, acabados y resumen total
 
 ---
 
@@ -125,13 +127,36 @@ Todo el plano se trabaja en **metros** como unidad base. La escala de visualizac
 
 Precios editables desde el panel → Materiales → "Editar precios".
 
+### Acabados (por m² de área de habitación)
+
+| Piso | Precio |
+|---|---|
+| Cerámica | $45.000 m² |
+| Porcelanato | $85.000 m² |
+| Madera laminada | $65.000 m² |
+| Concreto alisado | $25.000 m² |
+| Vinilo | $35.000 m² |
+
+| Cielo raso | Precio |
+|---|---|
+| Pintura directa | $12.000 m² |
+| Drywall | $35.000 m² |
+| PVC | $28.000 m² |
+
+| Pintura paredes | Precio |
+|---|---|
+| Vinilo | $15.000 m² |
+| Esmalte | $22.000 m² |
+
+Seleccionables por habitación desde el inspector de propiedades (clic sobre habitación).
+
 ---
 
 ## Tecnologías
 
 - **HTML5 + CSS3 + JavaScript Vanilla** — sin frameworks, sin build tools
 - **SVG** — dibujo vectorial, escalable y exportable
-- **Three.js r128** — vista 3D
+- **Three.js r128** — vista 3D con huecos reales en puertas/ventanas (multi-panel geometry)
 - **jsPDF 2.5.1** — exportación PDF
 - **localStorage** — persistencia local de proyectos
 

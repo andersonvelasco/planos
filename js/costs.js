@@ -4,6 +4,12 @@ PA.costs = (() => {
 
   function init() {}
 
+  const ACABADO_PRECIOS = {
+    piso:      { ninguno:0, ceramica:45000, porcelanato:85000, madera:65000, concreto:25000, vinilo:35000 },
+    cieloRaso: { ninguno:0, pintura:12000,  drywall:35000,     pvc:28000 },
+    pintura:   { ninguno:0, vinilo:15000,   esmalte:22000 }
+  };
+
   function update(materials) {
     const m = materials || PA.calculator.calc();
     const p = PA.state.prices;
@@ -26,23 +32,40 @@ PA.costs = (() => {
     const costAyudante  = area * p.ayudante;
     const totalMO       = costMaestro + costOficial + costAyudante;
 
-    const subtotal      = totalMat + totalMO;
+    // Acabados por habitación
+    let totalAcabados = 0;
+    const activeFloor = PA.activeFloor();
+    if (activeFloor) {
+      activeFloor.rooms.forEach(r => {
+        const a = r.area || 0;
+        if (!a) return;
+        const f = r.finishes || {};
+        totalAcabados += a   * (ACABADO_PRECIOS.piso[f.piso           || 'ceramica'] || 0);
+        totalAcabados += a   * (ACABADO_PRECIOS.cieloRaso[f.cieloRaso || 'pintura']  || 0);
+        totalAcabados += a*3 * (ACABADO_PRECIOS.pintura[f.pintura      || 'vinilo']   || 0);
+      });
+    }
+
+    const subtotal      = totalMat + totalMO + totalAcabados;
     const imprevistos   = subtotal * p.imprevistos;
     const total         = subtotal + imprevistos;
 
     const rows = [
-      { label: 'Materiales',     value: totalMat,    bold: false },
-      { label: '  · Bloques',    value: costBloques, bold: false, small: true },
-      { label: '  · Cemento',    value: costCemento, bold: false, small: true },
-      { label: '  · Arena',      value: costArena,   bold: false, small: true },
-      { label: '  · Gravilla',   value: costGravilla,bold: false, small: true },
-      { label: '  · Varilla #3', value: costVarilla3,bold: false, small: true },
-      { label: '  · Varilla #4', value: costVarilla4,bold: false, small: true },
-      { label: '  · Malla',      value: costMalla,   bold: false, small: true },
-      { label: 'Mano de Obra',   value: totalMO,     bold: false },
-      { label: '  · Maestro',    value: costMaestro, bold: false, small: true },
-      { label: '  · Oficial',    value: costOficial, bold: false, small: true },
-      { label: '  · Ayudante',   value: costAyudante,bold: false, small: true },
+      { label: 'Materiales',     value: totalMat,      bold: false },
+      { label: '  · Bloques',    value: costBloques,   bold: false, small: true },
+      { label: '  · Cemento',    value: costCemento,   bold: false, small: true },
+      { label: '  · Arena',      value: costArena,     bold: false, small: true },
+      { label: '  · Gravilla',   value: costGravilla,  bold: false, small: true },
+      { label: '  · Varilla #3', value: costVarilla3,  bold: false, small: true },
+      { label: '  · Varilla #4', value: costVarilla4,  bold: false, small: true },
+      { label: '  · Malla',      value: costMalla,     bold: false, small: true },
+      { label: 'Mano de Obra',   value: totalMO,       bold: false },
+      { label: '  · Maestro',    value: costMaestro,   bold: false, small: true },
+      { label: '  · Oficial',    value: costOficial,   bold: false, small: true },
+      { label: '  · Ayudante',   value: costAyudante,  bold: false, small: true },
+      ...(totalAcabados > 0 ? [
+        { label: 'Acabados',     value: totalAcabados, bold: false }
+      ] : []),
       { label: 'Imprevistos (10%)', value: imprevistos, bold: false },
     ];
 

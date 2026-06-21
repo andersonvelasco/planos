@@ -36,7 +36,8 @@ PA.tools.room = (() => {
           name,
           area,
           x: pt.x,
-          y: pt.y
+          y: pt.y,
+          finishes: { piso: 'ceramica', cieloRaso: 'pintura', pintura: 'vinilo' }
         });
         PA.canvas.render();
         PA.setDirty();

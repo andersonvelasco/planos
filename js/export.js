@@ -274,21 +274,46 @@ PA.export = (() => {
     ], doc);
 
     const totalMO = area * (p.maestro + p.oficial + p.ayudante);
-    const subtotal = totalMat + totalMO;
-    const imprevistos = subtotal * p.imprevistos;
-    const total = subtotal + imprevistos;
+    Y = doc.lastAutoTable ? doc.lastAutoTable.finalY + 8 : Y + 40;
 
-    Y = doc.lastAutoTable ? doc.lastAutoTable.finalY + 10 : Y + 40;
+    // Acabados
+    const acabadoP = {
+      piso:      { ninguno:0, ceramica:45000, porcelanato:85000, madera:65000, concreto:25000, vinilo:35000 },
+      cieloRaso: { ninguno:0, pintura:12000, drywall:35000, pvc:28000 },
+      pintura:   { ninguno:0, vinilo:15000, esmalte:22000 }
+    };
+    let totalAcabados = 0;
+    const pdfFloor = PA.activeFloor();
+    const acabadosRows = [['Habitación','m²','Piso','Cielo raso','Pintura','Subtotal']];
+    if (pdfFloor) pdfFloor.rooms.forEach(r => {
+      const a = r.area || 0;
+      if (!a) return;
+      const f = r.finishes || {};
+      const sub = a*(acabadoP.piso[f.piso||'ceramica']||0)
+                + a*(acabadoP.cieloRaso[f.cieloRaso||'pintura']||0)
+                + a*3*(acabadoP.pintura[f.pintura||'vinilo']||0);
+      totalAcabados += sub;
+      acabadosRows.push([r.name, a.toFixed(1), f.piso||'ceramica', f.cieloRaso||'pintura', f.pintura||'vinilo', PA.formatCOP(sub)]);
+    });
+    if (acabadosRows.length > 1) {
+      tableSection(doc, M, Y, W - M*2, 'ACABADOS POR HABITACIÓN', acabadosRows, doc);
+      Y = doc.lastAutoTable ? doc.lastAutoTable.finalY + 8 : Y + 40;
+    }
+
+    const subtotal    = totalMat + totalMO + totalAcabados;
+    const imprevistos = subtotal * p.imprevistos;
+    const total       = subtotal + imprevistos;
 
     // Total box
     doc.setFillColor(30, 42, 58);
-    doc.roundedRect(M, Y, W - M*2, 24, 3, 3, 'F');
-    doc.setFontSize(9); doc.setTextColor(148,163,184); doc.setFont('helvetica','normal');
-    doc.text('Materiales: ' + PA.formatCOP(totalMat), M + 8, Y + 8);
-    doc.text('Mano de obra: ' + PA.formatCOP(totalMO), M + 8, Y + 15);
-    doc.text('Imprevistos (10%): ' + PA.formatCOP(imprevistos), W - M - 8, Y + 8, { align:'right' });
+    doc.roundedRect(M, Y, W - M*2, 28, 3, 3, 'F');
+    doc.setFontSize(8); doc.setTextColor(148,163,184); doc.setFont('helvetica','normal');
+    doc.text('Materiales: '       + PA.formatCOP(totalMat),      M + 8, Y + 7);
+    doc.text('Mano de obra: '     + PA.formatCOP(totalMO),       M + 8, Y + 14);
+    doc.text('Acabados: '         + PA.formatCOP(totalAcabados), M + 8, Y + 21);
+    doc.text('Imprevistos (10%): '+ PA.formatCOP(imprevistos), W - M - 8, Y + 7,  { align:'right' });
     doc.setFontSize(14); doc.setTextColor(52, 211, 153); doc.setFont('helvetica','bold');
-    doc.text('TOTAL: ' + PA.formatCOP(total), W - M - 8, Y + 18, { align:'right' });
+    doc.text('TOTAL: ' + PA.formatCOP(total), W - M - 8, Y + 22, { align:'right' });
 
     // Footer
     doc.setFontSize(7); doc.setTextColor(150,150,150); doc.setFont('helvetica','normal');
@@ -333,5 +358,111 @@ PA.export = (() => {
     docRef.lastAutoTable.finalY = ry;
   }
 
-  return { toPDF };
+  /* ── CSV / Excel export ──────────────────────────── */
+  function toCSV() {
+    const m = PA.calculator.calc();
+    const p = PA.state.prices;
+    const now = new Date().toLocaleDateString('es-CO', { year:'numeric', month:'long', day:'numeric' });
+    const name = PA.state.projectName || 'plano';
+
+    const totalMat = m.bloques*p.bloque + m.cemento*p.cemento + m.arena*p.arena +
+                     m.gravilla*p.gravilla + m.varilla3*p.varilla3 + m.varilla4*p.varilla4 + m.malla*p.malla;
+    const area     = m.floorArea || m.netWallArea || 0;
+    const totalMO  = area * (p.maestro + p.oficial + p.ayudante);
+
+    // Acabados
+    const acabadoP = {
+      piso:     { ninguno:0, ceramica:45000, porcelanato:85000, madera:65000, concreto:25000, vinilo:35000 },
+      cieloRaso:{ ninguno:0, pintura:12000, drywall:35000, pvc:28000 },
+      pintura:  { ninguno:0, vinilo:15000, esmalte:22000 }
+    };
+    let totalAcabados = 0;
+    const floor = PA.activeFloor();
+    if (floor) floor.rooms.forEach(r => {
+      const a = r.area || 0;
+      if (!a) return;
+      const f = r.finishes || {};
+      totalAcabados += a * (acabadoP.piso[f.piso || 'ceramica'] || 0);
+      totalAcabados += a * (acabadoP.cieloRaso[f.cieloRaso || 'pintura'] || 0);
+      totalAcabados += a * 3 * (acabadoP.pintura[f.pintura || 'vinilo'] || 0);
+    });
+
+    const subtotal    = totalMat + totalMO + totalAcabados;
+    const imprevistos = subtotal * p.imprevistos;
+    const total       = subtotal + imprevistos;
+
+    const rows = [
+      ['PRESUPUESTO ESTIMADO — ' + name.toUpperCase()],
+      ['Fecha:', now],
+      [''],
+      ['RESUMEN GENERAL'],
+      ['Longitud de paredes:', m.totalWallLength + ' m'],
+      ['Área neta paredes:', m.netWallArea + ' m²'],
+      ['Área de pisos (losa):', m.floorArea + ' m²'],
+      ['Columnas estimadas:', m.numColumnas],
+      [''],
+      ['MATERIALES DE CONSTRUCCIÓN'],
+      ['Material','Cantidad','Unidad','Precio unitario (COP)','Total (COP)'],
+      ['Bloque 15×20×40',     m.bloques,  'un',    p.bloque,    m.bloques*p.bloque],
+      ['Cemento (50 kg)',      m.cemento,  'sacos', p.cemento,   m.cemento*p.cemento],
+      ['Arena de pega',        m.arena,    'm³',    p.arena,     m.arena*p.arena],
+      ['Gravilla',             m.gravilla, 'm³',    p.gravilla,  m.gravilla*p.gravilla],
+      ['Varilla #3 (3/8")',    m.varilla3, 'barras',p.varilla3,  m.varilla3*p.varilla3],
+      ['Varilla #4 (1/2")',    m.varilla4, 'barras',p.varilla4,  m.varilla4*p.varilla4],
+      ['Malla electrosoldada', m.malla,    'm²',    p.malla,     m.malla*p.malla],
+      ['','','','SUBTOTAL MATERIALES', totalMat],
+      [''],
+      ['MANO DE OBRA (por m² construido)'],
+      ['Categoría','Área (m²)','Precio/m² (COP)','','Total (COP)'],
+      ['Maestro de obra',         area, p.maestro,  '', area*p.maestro],
+      ['Oficial de construcción', area, p.oficial,  '', area*p.oficial],
+      ['Ayudante',                area, p.ayudante, '', area*p.ayudante],
+      ['','','','SUBTOTAL MANO DE OBRA', totalMO],
+      [''],
+    ];
+
+    // Acabados por habitación
+    if (floor && floor.rooms.length > 0) {
+      rows.push(['ACABADOS POR HABITACIÓN']);
+      rows.push(['Habitación','Área (m²)','Piso','Cielo raso','Pintura paredes','Subtotal (COP)']);
+      floor.rooms.forEach(r => {
+        const a = r.area || 0;
+        const f = r.finishes || {};
+        const sub = a*(acabadoP.piso[f.piso||'ceramica']||0)
+                  + a*(acabadoP.cieloRaso[f.cieloRaso||'pintura']||0)
+                  + a*3*(acabadoP.pintura[f.pintura||'vinilo']||0);
+        rows.push([r.name, a.toFixed(2), f.piso||'ceramica', f.cieloRaso||'pintura', f.pintura||'vinilo', sub]);
+      });
+      rows.push(['','','','','SUBTOTAL ACABADOS', totalAcabados]);
+      rows.push(['']);
+    }
+
+    rows.push(['RESUMEN TOTAL']);
+    rows.push(['Materiales',          '','','','', totalMat]);
+    rows.push(['Mano de obra',        '','','','', totalMO]);
+    rows.push(['Acabados',            '','','','', totalAcabados]);
+    rows.push(['Imprevistos (10%)',   '','','','', imprevistos]);
+    rows.push(['TOTAL ESTIMADO COP',  '','','','', total]);
+    rows.push(['']);
+    rows.push(['* Estimado referencial Colombia 2025. Ajustar según región y proveedor.']);
+
+    const csv = '﻿' + rows.map(row =>
+      row.map(cell => {
+        const s = String(cell ?? '');
+        return s.includes(',') || s.includes('"') ? '"' + s.replace(/"/g, '""') + '"' : s;
+      }).join(',')
+    ).join('\r\n');
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = name.replace(/\s+/g, '_') + '_presupuesto.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  return { toPDF, toCSV };
 })();

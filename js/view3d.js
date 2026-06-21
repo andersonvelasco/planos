@@ -143,26 +143,20 @@ PA.view3d = (() => {
       const baseY = fi * FLOOR_H;
       const wallH = fi === 0 ? WALL_H : WALL_H;
 
-      /* Walls */
+      /* Walls with door/window openings */
       floor.walls.forEach(wall => {
         const dx = wall.x2 - wall.x1, dz = wall.y2 - wall.y1;
-        const len = Math.hypot(dx, dz);
-        if (len < 0.01) return;
+        const L  = Math.hypot(dx, dz);
+        if (L < 0.01) return;
 
-        const t = wall.thickness || 0.15;
-        const h = wall.height || wallH;
-        const geo = new THREE.BoxGeometry(len, h, t);
-        const mat = WALL_MATS[fi % WALL_MATS.length];
-        const mesh = new THREE.Mesh(geo, mat);
-        mesh.castShadow  = true;
-        mesh.receiveShadow = true;
-        mesh.position.set(
-          (wall.x1 + wall.x2) / 2,
-          baseY + h / 2,
-          (wall.y1 + wall.y2) / 2
-        );
-        mesh.rotation.y = -Math.atan2(dz, dx);
-        _scene.add(mesh);
+        const mat  = WALL_MATS[fi % WALL_MATS.length];
+        const h    = wall.height || wallH;
+        const openings = [
+          ...floor.doors.filter(d => d.wallId === wall.id).map(d => ({ t: d.t, width: d.width, type: 'door' })),
+          ...floor.windows.filter(w => w.wallId === wall.id).map(w => ({ t: w.t, width: w.width, type: 'window' }))
+        ];
+
+        _buildWallWithOpenings(wall, openings, baseY, h, mat);
 
         [wall.x1, wall.x2].forEach(x => { gMinX = Math.min(gMinX, x); gMaxX = Math.max(gMaxX, x); });
         [wall.y1, wall.y2].forEach(z => { gMinZ = Math.min(gMinZ, z); gMaxZ = Math.max(gMaxZ, z); });
@@ -216,6 +210,57 @@ PA.view3d = (() => {
     const cz = isFinite(gMinZ) ? (gMinZ + gMaxZ) / 2 : 6;
     const cy = (PA.state.floors.length * FLOOR_H) / 2;
     return new THREE.Vector3(cx, cy, cz);
+  }
+
+  /* Builds a wall as multiple BoxGeometry panels to cut holes for doors/windows */
+  function _buildWallWithOpenings(wall, openings, baseY, wallH, mat) {
+    const THREE   = window.THREE;
+    const dx = wall.x2 - wall.x1, dz = wall.y2 - wall.y1;
+    const L  = Math.hypot(dx, dz);
+    if (L < 0.01) return;
+    const ux    = dx / L, uz = dz / L;
+    const angle = -Math.atan2(dz, dx);
+    const thick  = wall.thickness || 0.15;
+    const DOOR_H = Math.min(2.1, wallH);
+    const WIN_SILL = 0.9, WIN_TOP = Math.min(2.1, wallH);
+
+    // Convert each opening to [tStart, tEnd] fractions, clamped to [0,1]
+    const gaps = openings.map(op => ({
+      tStart: Math.max(0, op.t - op.width / (2 * L)),
+      tEnd:   Math.min(1, op.t + op.width / (2 * L)),
+      type:   op.type
+    })).sort((a, b) => a.tStart - b.tStart);
+
+    // Build list of solid intervals (between gaps)
+    const solids = [];
+    let cur = 0;
+    for (const g of gaps) {
+      if (g.tStart > cur + 0.002) solids.push({ tStart: cur, tEnd: g.tStart });
+      cur = Math.max(cur, g.tEnd);
+    }
+    if (cur < 1 - 0.002) solids.push({ tStart: cur, tEnd: 1 });
+
+    const addPanel = (tS, tE, yBot, h) => {
+      const segLen = (tE - tS) * L;
+      if (segLen < 0.002 || h < 0.002) return;
+      const ct = (tS + tE) / 2;
+      const geo  = new THREE.BoxGeometry(segLen, h, thick);
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.castShadow = mesh.receiveShadow = true;
+      mesh.position.set(wall.x1 + ux * ct * L, baseY + yBot + h / 2, wall.y1 + uz * ct * L);
+      mesh.rotation.y = angle;
+      _scene.add(mesh);
+    };
+
+    solids.forEach(s => addPanel(s.tStart, s.tEnd, 0, wallH));
+    gaps.forEach(g => {
+      if (g.type === 'door') {
+        if (wallH > DOOR_H) addPanel(g.tStart, g.tEnd, DOOR_H, wallH - DOOR_H); // lintel only
+      } else {
+        addPanel(g.tStart, g.tEnd, 0, WIN_SILL);                                  // sill
+        if (wallH > WIN_TOP) addPanel(g.tStart, g.tEnd, WIN_TOP, wallH - WIN_TOP); // lintel
+      }
+    });
   }
 
   function _animate() {

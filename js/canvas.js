@@ -289,10 +289,18 @@ PA.canvas = (() => {
       case 'room': {
         const r = floor.rooms.find(x => x.id === id);
         if (!r) return;
+        const f = r.finishes || {};
+        const sel = (id2, opts, val) =>
+          `<select id="${id2}" style="font-size:11px;padding:2px 4px;border:1px solid #e2e8f0;border-radius:3px;max-width:90px">
+            ${opts.map(o => `<option value="${o}" ${val===o?'selected':''}>${o}</option>`).join('')}
+           </select>`;
         name = 'Habitación';
         html = row('Nombre', r.name)
              + row('Área',   r.area ? r.area.toFixed(2) + ' m²' : '—')
-             + `<button class="btn-add" id="props-edit-room" style="margin-top:4px">✎ Editar</button>`;
+             + `<div class="prop-row"><span class="prop-label">Piso</span>${sel('finish-piso',['ceramica','porcelanato','madera','concreto','vinilo','ninguno'],f.piso||'ceramica')}</div>`
+             + `<div class="prop-row"><span class="prop-label">Cielo raso</span>${sel('finish-cielorraso',['pintura','drywall','pvc','ninguno'],f.cieloRaso||'pintura')}</div>`
+             + `<div class="prop-row"><span class="prop-label">Pintura</span>${sel('finish-pintura',['vinilo','esmalte','ninguno'],f.pintura||'vinilo')}</div>`
+             + `<button class="btn-add" id="props-edit-room" style="margin-top:4px">✎ Editar nombre/área</button>`;
         break;
       }
       case 'dimension': {
@@ -330,6 +338,23 @@ PA.canvas = (() => {
     if (delBtn) delBtn.onclick = () => deleteSelected();
     const delHeader = document.getElementById('props-delete');
     if (delHeader) delHeader.onclick = () => deleteSelected();
+
+    // Wire up finish selects
+    const _wireFinish = (selId, key) => {
+      const el = document.getElementById(selId);
+      if (!el) return;
+      el.onchange = () => {
+        const r = floor.rooms.find(x => x.id === id);
+        if (!r) return;
+        if (!r.finishes) r.finishes = {};
+        r.finishes[key] = el.value;
+        PA.setDirty();
+        PA.costs.update();
+      };
+    };
+    _wireFinish('finish-piso',      'piso');
+    _wireFinish('finish-cielorraso','cieloRaso');
+    _wireFinish('finish-pintura',   'pintura');
   }
 
   function _hideProps() {
