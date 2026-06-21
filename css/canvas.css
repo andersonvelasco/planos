@@ -1,0 +1,183 @@
+/* ── CANVAS AREA ──────────────────────────────────── */
+#canvas-area {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  background: var(--clr-canvas-bg);
+  cursor: default;
+}
+
+#main-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* Cursor states by tool */
+.tool-select  #main-svg { cursor: default; }
+.tool-wall    #main-svg { cursor: crosshair; }
+.tool-door    #main-svg { cursor: cell; }
+.tool-window  #main-svg { cursor: cell; }
+.tool-room    #main-svg { cursor: text; }
+.tool-dimension #main-svg { cursor: crosshair; }
+.tool-erase   #main-svg { cursor: not-allowed; }
+
+/* Move cursor on draggable elements when select tool is active */
+.tool-select .draggable-el { cursor: move; }
+.tool-pan     #main-svg { cursor: grab; }
+.tool-pan.panning #main-svg { cursor: grabbing; }
+.tool-stairs  #main-svg { cursor: crosshair; }
+
+/* ── STATUS BAR ───────────────────────────────────── */
+#status-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 24px;
+  background: rgba(30,42,58,.85);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  gap: 10px;
+  font-size: 11px;
+  color: #94a3b8;
+  pointer-events: none;
+}
+#status-bar .sep { color: #475569; }
+#cursor-pos { color: #cbd5e1; font-variant-numeric: tabular-nums; }
+#tool-hint { color: #64748b; }
+
+/* ── SVG ELEMENT STYLES ───────────────────────────── */
+
+/* Grid */
+#grid-bg { pointer-events: none; }
+
+/* Walls */
+.wall-fill {
+  fill: var(--clr-wall);
+  opacity: 1;
+}
+.wall-group:hover    .wall-fill { fill: #3d4f68; }
+.wall-group.selected .wall-fill { fill: #2d6bc4; stroke: var(--clr-select) !important; }
+
+/* Opening masks (doors/windows cut into walls) */
+.opening-mask { fill: var(--clr-canvas-bg); }
+
+/* Doors — stroke-width controlled via SVG attrs (metres) */
+.door-panel { stroke: var(--clr-door); fill: none; }
+.door-arc   { stroke: var(--clr-door); fill: none; }
+.door-group:hover .door-panel,
+.door-group:hover .door-arc   { stroke: var(--clr-accent); }
+.door-group.selected .door-panel,
+.door-group.selected .door-arc { stroke: var(--clr-select); }
+
+/* Windows — stroke-width controlled via SVG attrs */
+.window-frame { stroke: var(--clr-window); fill: none; }
+.window-glass { fill: rgba(147,197,253,.18); stroke: none; }
+.window-group:hover .window-frame   { stroke: var(--clr-accent); }
+.window-group.selected .window-frame { stroke: var(--clr-select); }
+
+/* Rooms */
+.room-label-group:hover .room-bg-rect   { opacity: 0.85; }
+.room-label-group.selected .room-bg-rect { stroke: var(--clr-select) !important; stroke-opacity: 1 !important; stroke-width: 0.05 !important; }
+
+/* Dimensions — stroke-width en SVG attrs */
+.dim-line { stroke: var(--clr-dim); fill: none; }
+.dim-tick { stroke: var(--clr-dim); }
+.dim-text { fill: var(--clr-dim); }
+.dim-bg   { fill: rgba(255,255,255,.92); }
+.dim-group:hover .dim-line,
+.dim-group:hover .dim-tick { stroke: var(--clr-accent); }
+.dim-group.selected .dim-line,
+.dim-group.selected .dim-tick { stroke: var(--clr-select); }
+.dim-group.selected .dim-text { fill: var(--clr-select); }
+.dim-group:hover .dim-text { fill: var(--clr-accent); }
+
+/* Preview / in-progress elements */
+.preview-wall {
+  stroke: var(--clr-accent);
+  stroke-width: 0.15px;
+  fill: rgba(59,130,246,.15);
+  stroke-dasharray: 0.2,0.1;
+}
+.preview-point {
+  fill: var(--clr-accent);
+  stroke: #fff;
+  stroke-width: 0.04px;
+}
+.preview-door-arc {
+  stroke: var(--clr-door);
+  stroke-width: 0.04px;
+  fill: rgba(146,64,14,.1);
+  stroke-dasharray: 0.1,0.05;
+}
+.preview-dim {
+  stroke: var(--clr-dim);
+  stroke-width: 0.04px;
+  fill: none;
+  stroke-dasharray: 0.15,0.08;
+}
+
+/* Selection handles */
+.sel-handle {
+  fill: #fff;
+  stroke: var(--clr-select);
+  stroke-width: 0.05px;
+  cursor: move;
+}
+.sel-box {
+  fill: none;
+  stroke: var(--clr-select);
+  stroke-width: 0.05px;
+  stroke-dasharray: 0.2,0.1;
+}
+
+/* Stairs */
+.stair-group { cursor: pointer; }
+.stair-fill  { fill: rgba(99,102,241,.09); stroke: #6366f1; }
+.stair-step  { stroke: #6366f1; fill: none; stroke-linecap: round; }
+.stair-label { fill: #4f46e5; }
+.stair-group:hover .stair-fill { fill: rgba(99,102,241,.18); }
+
+/* Column markers (structural overlay) — tamaños via atributos SVG en metros */
+.col-marker { fill: rgba(234,179,8,.18); stroke: #b45309; }
+.col-cross  { stroke: #b45309; stroke-linecap: round; }
+.col-label  { fill: #92400e; }
+
+/* Floor opacity for non-active floors */
+.floor-layer { transition: opacity .2s; }
+.floor-layer.inactive { opacity: 0.25; pointer-events: none; }
+.floor-layer.hidden { display: none; }
+
+/* North indicator */
+#north-indicator {
+  position: absolute;
+  bottom: 32px;
+  right: 14px;
+  width: 36px;
+  height: 36px;
+  pointer-events: none;
+}
+
+/* Scale bar */
+#scale-bar {
+  position: absolute;
+  bottom: 32px;
+  left: 80px;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+#scale-bar-line {
+  height: 4px;
+  background: #1e2a3a;
+  border: 1px solid #1e2a3a;
+}
+#scale-bar-label {
+  font-size: 10px;
+  color: #475569;
+}
