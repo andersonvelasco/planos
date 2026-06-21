@@ -123,6 +123,41 @@ const PA = (() => {
 
   function activeFloor() { return state.floors[state.activeFloor]; }
 
+  /* ── Snap a segmento de pared (para T-junctions) ── */
+  function snapToWall(x, y, excludeId = null) {
+    const VERTEX_R = 0.35;
+    const WALL_R   = 0.28;
+    const floor = activeFloor();
+
+    // 1. Primero intentar snap a vértice (más prioridad)
+    let best = null, bestD = VERTEX_R;
+    for (const w of floor.walls) {
+      if (w.id === excludeId) continue;
+      for (const pt of [{ x: w.x1, y: w.y1 }, { x: w.x2, y: w.y2 }]) {
+        const d = Math.hypot(pt.x - x, pt.y - y);
+        if (d < bestD) { bestD = d; best = { ...pt }; }
+      }
+    }
+    if (best) return best;
+
+    // 2. Luego snap al cuerpo de pared más cercano (genera T-junction)
+    let wallBest = null, wallBestD = WALL_R;
+    for (const w of floor.walls) {
+      if (w.id === excludeId) continue;
+      const dx = w.x2 - w.x1, dy = w.y2 - w.y1;
+      const lenSq = dx * dx + dy * dy;
+      if (lenSq < 0.001) continue;
+      const t = Math.max(0.05, Math.min(0.95, ((x - w.x1) * dx + (y - w.y1) * dy) / lenSq));
+      const px = w.x1 + t * dx, py = w.y1 + t * dy;
+      const d = Math.hypot(x - px, y - py);
+      if (d < wallBestD) { wallBestD = d; wallBest = { x: px, y: py }; }
+    }
+    if (wallBest) return wallBest;
+
+    // 3. Fallback a grid snap
+    return snap(x, y);
+  }
+
   /* ── Dirty flag ─────────────────────────────────── */
   let _dirty = false;
   function setDirty() {
@@ -419,7 +454,7 @@ const PA = (() => {
     on, off, emit,
     uid, newFloor,
     setSVG, clientToSVG, svgToWorld, worldToSVG, clientToWorld,
-    snap, snapVertex,
+    snap, snapVertex, snapToWall,
     activeFloor,
     setDirty, clearDirty, isDirty,
     saveUndo, undo, redo,

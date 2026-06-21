@@ -168,6 +168,50 @@
   font-weight: 600;
 }
 
+/* ── PROPERTIES INSPECTOR ───────────────────────── */
+#props-section {
+  background: linear-gradient(135deg, #eff6ff 0%, #f0fdf4 100%);
+  border-bottom: 2px solid var(--clr-accent);
+}
+#props-section .panel-section-header {
+  background: transparent;
+  border-bottom: 1px solid rgba(59,130,246,.15);
+  color: var(--clr-accent);
+}
+.prop-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 5px 0;
+  border-bottom: 1px solid rgba(0,0,0,.04);
+  font-size: 12px;
+}
+.prop-row:last-of-type { border-bottom: none; }
+.prop-label { color: #64748b; }
+.prop-val   { color: #1e293b; }
+.prop-delete-btn {
+  width: 100%;
+  margin-top: 8px;
+  padding: 5px;
+  background: #fff0f0;
+  border: 1px solid #fecaca;
+  border-radius: 5px;
+  color: #dc2626;
+  font-size: 11px;
+  cursor: pointer;
+  transition: background .12s;
+}
+.prop-delete-btn:hover { background: #fee2e2; }
+.btn-icon-sm {
+  background: none;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 2px 4px;
+}
+.btn-icon-sm:hover { color: #ef4444; }
+
 /* ── MATERIALS ──────────────────────────────────── */
 #materials-list {
   display: flex;

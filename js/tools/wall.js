@@ -42,7 +42,7 @@ PA.tools.wall = (() => {
     if (e.button !== 0) return;
     const raw  = PA.clientToWorld(e.clientX, e.clientY);
     let pt = points.length > 0
-      ? PA.snapVertex(raw.x, raw.y)
+      ? PA.snapToWall(raw.x, raw.y)
       : PA.snap(raw.x, raw.y);
 
     if (e.shiftKey && drawing && points.length > 0) {
@@ -64,7 +64,7 @@ PA.tools.wall = (() => {
   function onMouseMove(e) {
     if (!drawing) return;
     const raw = PA.clientToWorld(e.clientX, e.clientY);
-    let pt = PA.snapVertex(raw.x, raw.y);
+    let pt = PA.snapToWall(raw.x, raw.y);
     if (e.shiftKey && points.length > 0) {
       pt = snapAngle(points[points.length - 1], pt);
     }

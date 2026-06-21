@@ -23,17 +23,27 @@ PA.calculator = (() => {
     });
 
     // Descontar aperturas (puertas y ventanas)
-    let openingArea = 0;
+    // Regla NSR-10: solo descontar vanos > 2m² de mampostería; siempre de mano de obra
+    let openingAreaMamp = 0;   // descuento material
+    let openingAreaMO   = 0;   // descuento mano de obra
+    let dintelLength    = 0;   // longitud total de dinteles
+
     floor.doors.forEach(d => {
       const wall = floor.walls.find(w => w.id === d.wallId);
       const h = wall ? (wall.height || 2.5) : 2.5;
-      openingArea += d.width * h;
+      const area = d.width * h;
+      openingAreaMO += area;
+      if (area >= 2.0) openingAreaMamp += area; // solo descuenta material si vano ≥ 2m²
+      dintelLength += d.width + 0.40; // ancho + 20cm apoyo cada lado
     });
     floor.windows.forEach(v => {
-      openingArea += v.width * 1.2; // altura ventana estándar 1.2m
+      const area = v.width * 1.20; // altura estándar 1.20m
+      openingAreaMO += area;
+      if (area >= 2.0) openingAreaMamp += area;
+      dintelLength += v.width + 0.40;
     });
 
-    const netWallArea = Math.max(0, totalWallArea - openingArea);
+    const netWallArea = Math.max(0, totalWallArea - openingAreaMamp);
 
     /* Área de piso */
     const floorArea = floor.rooms.reduce((s, r) => s + (r.area || 0), 0);
@@ -47,7 +57,9 @@ PA.calculator = (() => {
     const numColumnas  = Math.ceil(totalWallLength / 4);
     const volColumnas  = numColumnas * 0.2 * 0.2 * 2.5;
     const volVigas     = totalWallLength * 0.15 * 0.2;
-    const volConcreto  = volColumnas + volVigas;
+    // Dinteles: sección 0.12×0.15m sobre cada vano de puerta/ventana
+    const volDinteles  = dintelLength * 0.12 * 0.15;
+    const volConcreto  = volColumnas + volVigas + volDinteles;
 
     const cementoConc  = volConcreto * 7;     // sacos/m³
     const arenaConc    = volConcreto * 0.56;  // m³
@@ -63,11 +75,15 @@ PA.calculator = (() => {
     const malla        = floorArea * 1.1;
     const varilla4Losa = floorArea * 5 / 6; // varillas #4 por m²
 
+    const numDinteles = floor.doors.length + floor.windows.length;
+
     return {
       totalWallLength: round(totalWallLength),
       netWallArea:     round(netWallArea),
       floorArea:       round(floorArea),
       numColumnas,
+      numDinteles,
+      dintelLength:    round(dintelLength),
       bloques:         Math.ceil(bloques),
       cemento:         Math.ceil(cementoMamp + cementoConc + cementoLosa),
       arena:           round(arenaMamp + arenaConc + arenaLosa),
@@ -75,7 +91,6 @@ PA.calculator = (() => {
       varilla3:        Math.ceil(varilla3),
       varilla4:        Math.ceil(varilla4 + varilla4Losa),
       malla:           round(malla),
-      // breakdown
       _mamp: { bloques: Math.ceil(bloques), cemento: Math.ceil(cementoMamp), arena: round(arenaMamp) },
       _conc: { volumen: round(volConcreto), cemento: Math.ceil(cementoConc), arena: round(arenaConc), gravilla: round(gravillaConc), varilla3: Math.ceil(varilla3), varilla4: Math.ceil(varilla4) },
       _losa: { volumen: round(volLosa), cemento: Math.ceil(cementoLosa), arena: round(arenaLosa), gravilla: round(gravillaLosa), malla: round(malla), varilla4: Math.ceil(varilla4Losa) }
@@ -108,6 +123,7 @@ PA.calculator = (() => {
       { name: 'Varilla #3 (3/8")', qty: m.varilla3, unit: 'barras' },
       { name: 'Varilla #4 (1/2")', qty: m.varilla4, unit: 'barras' },
       { name: 'Malla electrosoldada', qty: m.malla, unit: 'm²' },
+      ...(m.numDinteles > 0 ? [{ name: `Dinteles (${m.numDinteles} vanos)`, qty: m.dintelLength, unit: 'ml' }] : []),
     ];
 
     list.innerHTML = `

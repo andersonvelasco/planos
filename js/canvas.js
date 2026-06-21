@@ -227,9 +227,11 @@ PA.canvas = (() => {
   /* ── Selection ───────────────────────────────────── */
   function selectElement(type, id, floorIdx) {
     clearSelection();
-    PA.state.selection = { type, id, floorIdx: floorIdx !== undefined ? floorIdx : PA.state.activeFloor };
+    const fi = floorIdx !== undefined ? floorIdx : PA.state.activeFloor;
+    PA.state.selection = { type, id, floorIdx: fi };
     const el = document.getElementById(id);
     if (el) el.classList.add('selected');
+    _showProps(type, id, fi);
   }
 
   function clearSelection() {
@@ -238,6 +240,101 @@ PA.canvas = (() => {
       if (el) el.classList.remove('selected');
     }
     PA.state.selection = null;
+    _hideProps();
+  }
+
+  /* ── Properties panel ───────────────────────────── */
+  function _showProps(type, id, floorIdx) {
+    const sec   = document.getElementById('props-section');
+    const body  = document.getElementById('props-body');
+    const title = document.getElementById('props-title');
+    if (!sec || !body) return;
+
+    const floor = PA.state.floors[floorIdx];
+    if (!floor) return;
+
+    const row = (label, val) =>
+      `<div class="prop-row"><span class="prop-label">${label}</span><strong class="prop-val">${val}</strong></div>`;
+
+    let html = '', name = '';
+
+    switch (type) {
+      case 'wall': {
+        const w = floor.walls.find(x => x.id === id);
+        if (!w) return;
+        const len = Math.hypot(w.x2 - w.x1, w.y2 - w.y1);
+        name = 'Pared';
+        html = row('Longitud', len.toFixed(2) + ' m')
+             + row('Grosor',   (w.thickness * 100).toFixed(0) + ' cm')
+             + row('Alto',     (w.height || 2.5) + ' m')
+             + row('Material', w.material || 'Bloque');
+        break;
+      }
+      case 'door': {
+        const d = floor.doors.find(x => x.id === id);
+        if (!d) return;
+        name = 'Puerta';
+        html = row('Ancho',   (d.width * 100).toFixed(0) + ' cm')
+             + row('Bisagra', d.openLeft ? 'Izquierda' : 'Derecha')
+             + row('Sentido', d.openIn   ? 'Hacia adentro' : 'Hacia afuera');
+        break;
+      }
+      case 'window': {
+        const w = floor.windows.find(x => x.id === id);
+        if (!w) return;
+        name = 'Ventana';
+        html = row('Ancho', (w.width * 100).toFixed(0) + ' cm');
+        break;
+      }
+      case 'room': {
+        const r = floor.rooms.find(x => x.id === id);
+        if (!r) return;
+        name = 'Habitación';
+        html = row('Nombre', r.name)
+             + row('Área',   r.area ? r.area.toFixed(2) + ' m²' : '—')
+             + `<button class="btn-add" id="props-edit-room" style="margin-top:4px">✎ Editar</button>`;
+        break;
+      }
+      case 'dimension': {
+        const d = floor.dimensions.find(x => x.id === id);
+        if (!d) return;
+        const len = Math.hypot(d.x2 - d.x1, d.y2 - d.y1);
+        name = 'Cota';
+        html = row('Longitud', len.toFixed(2) + ' m');
+        break;
+      }
+      case 'stair': {
+        const s = floor.stairs ? floor.stairs.find(x => x.id === id) : null;
+        if (!s) return;
+        const w = Math.abs(s.x2 - s.x1), h = Math.abs(s.y2 - s.y1);
+        name = 'Escalera';
+        html = row('Peldaños', s.steps)
+             + row('Ancho',    w.toFixed(2) + ' m')
+             + row('Largo',    h.toFixed(2) + ' m');
+        break;
+      }
+    }
+
+    title.textContent = name;
+    body.innerHTML = html
+      + `<button class="prop-delete-btn" id="props-delete-btn">✕ Eliminar ${name.toLowerCase()}</button>`;
+    sec.style.display = '';
+
+    // Wire up dynamic buttons
+    const editBtn = document.getElementById('props-edit-room');
+    if (editBtn) editBtn.onclick = () => {
+      const r = floor.rooms.find(x => x.id === id);
+      if (r) PA.floors.editRoom(r, floorIdx);
+    };
+    const delBtn = document.getElementById('props-delete-btn');
+    if (delBtn) delBtn.onclick = () => deleteSelected();
+    const delHeader = document.getElementById('props-delete');
+    if (delHeader) delHeader.onclick = () => deleteSelected();
+  }
+
+  function _hideProps() {
+    const sec = document.getElementById('props-section');
+    if (sec) sec.style.display = 'none';
   }
 
   function deleteSelected() {
