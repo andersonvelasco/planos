@@ -4,9 +4,18 @@ PA.tools.select = (() => {
 
   // _drag: { type, id, floorIdx, floor, originWorld, snapshot }
   let _drag = null;
+  let _rotate = null;
 
-  function activate()   { _drag = null; }
-  function deactivate() { _drag = null; }
+  function activate()   { _drag = null; _rotate = null; }
+  function deactivate() { _drag = null; _rotate = null; }
+
+  function startRotate(id, floorIdx, e, cx, cy) {
+    const floor = PA.state.floors[floorIdx];
+    if (!floor) return;
+    e.stopPropagation();
+    PA.saveUndo();
+    _rotate = { id, floorIdx, floor, cx, cy, moved: false };
+  }
 
   /* ── Mousedown on empty canvas → clear selection ── */
   function onMouseDown(e) {
@@ -66,11 +75,29 @@ PA.tools.select = (() => {
         const el = floor.pipes ? floor.pipes.find(x => x.id === id) : null;
         return el ? { x1: el.x1, y1: el.y1, x2: el.x2, y2: el.y2 } : null;
       }
+      case 'lightwell': {
+        const el = (floor.lightwells || []).find(x => x.id === id);
+        return el ? { x: el.x, y: el.y } : null;
+      }
+      case 'skylight': {
+        const el = (floor.skylights || []).find(x => x.id === id);
+        return el ? { x: el.x, y: el.y } : null;
+      }
     }
     return null;
   }
 
   function onMouseMove(e) {
+    if (_rotate) {
+      const w = PA.clientToWorld(e.clientX, e.clientY);
+      const item = (_rotate.floor.furniture || []).find(x => x.id === _rotate.id);
+      if (item) {
+        item.rotation = Math.atan2(w.y - _rotate.cy, w.x - _rotate.cx) + Math.PI / 2;
+        _rotate.moved = true;
+        PA.canvas.render();
+      }
+      return;
+    }
     if (!_drag) return;
     if (!_drag.moved) PA.saveUndo(); // save before first mutation
     const w = PA.clientToWorld(e.clientX, e.clientY);
@@ -80,6 +107,7 @@ PA.tools.select = (() => {
   }
 
   function onMouseUp() {
+    if (_rotate) { const moved = _rotate.moved; _rotate = null; if (moved) PA.setDirty(); return; }
     if (_drag) {
       const moved = _drag.moved;
       _drag = null;
@@ -169,8 +197,22 @@ PA.tools.select = (() => {
         el.x2 = snapshot.x2 + dx; el.y2 = snapshot.y2 + dy;
         break;
       }
+      case 'lightwell': {
+        const el = (floor.lightwells || []).find(x => x.id === id);
+        if (!el) break;
+        el.x = snapshot.x + dx;
+        el.y = snapshot.y + dy;
+        break;
+      }
+      case 'skylight': {
+        const el = (floor.skylights || []).find(x => x.id === id);
+        if (!el) break;
+        el.x = snapshot.x + dx;
+        el.y = snapshot.y + dy;
+        break;
+      }
     }
   }
 
-  return { activate, deactivate, onMouseDown, onMouseMove, onMouseUp, startDrag };
+  return { activate, deactivate, onMouseDown, onMouseMove, onMouseUp, startDrag, startRotate };
 })();

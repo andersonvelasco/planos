@@ -41,6 +41,8 @@ PA.floors = (() => {
       renderFurniture(floor, g, idx);
       renderPipes(floor, g, idx);
       renderElectrical(floor, g, idx);
+      renderLightwells(floor, g, idx);
+      renderSkylights(floor, g, idx);
 
       group.appendChild(g);
     });
@@ -509,7 +511,7 @@ PA.floors = (() => {
         g.appendChild(svgEl('rect', { x:x1,y:y1,width:w,height:h, fill:'transparent', stroke:'none', 'pointer-events':'fill' }));
         if (PA.tools.stairs && PA.tools.stairs._drawShape) {
           PA.tools.stairs._drawShape({ appendChild: el => g.appendChild(el) },
-            x1, y1, x2, y2, w, h, steps, shape, color, fill, landFill);
+            x1, y1, x2, y2, w, h, steps, shape, color, fill, landFill, st.uRunW || 0.30);
         }
       } else {
         // Straight stair
@@ -603,6 +605,28 @@ PA.floors = (() => {
         x: 0, y: 0, width: item.w, height: item.h,
         fill: 'transparent', stroke: 'none'
       }));
+
+      const isSel = PA.state.selection && PA.state.selection.id === item.id && PA.state.activeTool === 'select';
+      if (isSel) {
+        const hDist = 0.42;
+        const hx = item.w / 2;
+        g.appendChild(svgEl('line', {
+          x1: hx.toFixed(4), y1: 0, x2: hx.toFixed(4), y2: (-hDist).toFixed(4),
+          stroke: '#6366f1', 'stroke-width': 0.018,
+          'stroke-dasharray': '0.06 0.04', 'pointer-events': 'none'
+        }));
+        const rotHandle = svgEl('circle', {
+          cx: hx.toFixed(4), cy: (-hDist).toFixed(4), r: 0.14,
+          fill: '#6366f1', stroke: 'white', 'stroke-width': 0.030
+        });
+        rotHandle.style.cursor = 'grab';
+        rotHandle.addEventListener('mousedown', e => {
+          if (e.button !== 0) return;
+          e.stopPropagation();
+          if (PA.tools.select) PA.tools.select.startRotate(item.id, floorIdx, e, item.x, item.y);
+        });
+        g.appendChild(rotHandle);
+      }
 
       g.addEventListener('mousedown', e => {
         if (_startDrag('furniture', item.id, floorIdx, e)) e.stopPropagation();
@@ -751,6 +775,139 @@ PA.floors = (() => {
       g.appendChild(pg);
     });
     parentGroup.appendChild(g);
+  }
+
+  /* ── Lightwells ─────────────────────────────────── */
+  function renderLightwells(floor, parentGroup, floorIdx) {
+    if (!floor.lightwells || floor.lightwells.length === 0) return;
+    const NS = 'http://www.w3.org/2000/svg';
+
+    // Define hatch pattern once per render call (unique id per floor)
+    const patId = 'lw-hatch-' + floorIdx;
+    const defs = document.createElementNS(NS, 'defs');
+    const pat  = svgEl('pattern', { id: patId, width: 0.3, height: 0.3, patternUnits: 'userSpaceOnUse' });
+    const ln   = svgEl('line', { x1: 0, y1: 0.3, x2: 0.3, y2: 0, stroke: '#93c5fd', 'stroke-width': 0.025, opacity: 0.6 });
+    pat.appendChild(ln);
+    defs.appendChild(pat);
+    parentGroup.appendChild(defs);
+
+    floor.lightwells.forEach(lw => {
+      const g = svgEl('g', { id: lw.id, class: 'lightwell-group draggable-el', 'data-selectable': '1' });
+
+      // Hatch fill
+      g.appendChild(svgEl('rect', {
+        x: lw.x, y: lw.y, width: lw.w, height: lw.h,
+        fill: `url(#${patId})`, opacity: 0.9
+      }));
+      // Solid border
+      g.appendChild(svgEl('rect', {
+        x: lw.x, y: lw.y, width: lw.w, height: lw.h,
+        fill: 'rgba(147,197,253,0.18)', stroke: '#3b82f6',
+        'stroke-width': 0.035, 'stroke-dasharray': '0.12 0.06'
+      }));
+      // Label
+      const txt = svgEl('text', {
+        x: (lw.x + lw.w / 2).toFixed(4), y: (lw.y + lw.h / 2 + 0.10).toFixed(4),
+        'text-anchor': 'middle', fill: '#1d4ed8',
+        'font-size': '0.22px', 'font-weight': '700', 'font-family': 'system-ui,sans-serif'
+      });
+      txt.textContent = lw.label || 'Patio de Luz';
+      g.appendChild(txt);
+      const dimTxt = svgEl('text', {
+        x: (lw.x + lw.w / 2).toFixed(4), y: (lw.y + lw.h / 2 + 0.35).toFixed(4),
+        'text-anchor': 'middle', fill: '#3b82f6',
+        'font-size': '0.16px', 'font-family': 'system-ui,sans-serif'
+      });
+      dimTxt.textContent = lw.w.toFixed(2) + ' × ' + lw.h.toFixed(2) + ' m';
+      g.appendChild(dimTxt);
+
+      g.addEventListener('mousedown', e => {
+        if (_startDrag('lightwell', lw.id, floorIdx, e)) e.stopPropagation();
+      });
+      g.addEventListener('click', e => {
+        if (PA.state.activeTool === 'erase') {
+          e.stopPropagation();
+          PA.saveUndo();
+          PA.state.floors[floorIdx].lightwells = PA.state.floors[floorIdx].lightwells.filter(x => x.id !== lw.id);
+          PA.canvas.render(); PA.setDirty();
+        }
+      });
+      g.addEventListener('contextmenu', e => {
+        e.preventDefault(); e.stopPropagation();
+        PA.contextMenu(e.clientX, e.clientY, [
+          { label: 'Eliminar patio de luz', danger: true, action: () => {
+            PA.saveUndo();
+            PA.state.floors[floorIdx].lightwells = PA.state.floors[floorIdx].lightwells.filter(x => x.id !== lw.id);
+            PA.canvas.render(); PA.setDirty();
+          }}
+        ]);
+      });
+
+      parentGroup.appendChild(g);
+    });
+  }
+
+  /* ── Skylights ──────────────────────────────────── */
+  function renderSkylights(floor, parentGroup, floorIdx) {
+    if (!floor.skylights || floor.skylights.length === 0) return;
+
+    floor.skylights.forEach(sl => {
+      const g = svgEl('g', { id: sl.id, class: 'skylight-group draggable-el', 'data-selectable': '1' });
+      const cx = sl.x + sl.w / 2, cy = sl.y + sl.h / 2;
+
+      // Background rect
+      g.appendChild(svgEl('rect', {
+        x: sl.x, y: sl.y, width: sl.w, height: sl.h,
+        fill: 'rgba(254,240,138,0.35)', stroke: '#f59e0b',
+        'stroke-width': 0.030, 'stroke-dasharray': '0.10 0.05'
+      }));
+      // Diagonal X lines
+      g.appendChild(svgEl('line', {
+        x1: sl.x, y1: sl.y, x2: sl.x + sl.w, y2: sl.y + sl.h,
+        stroke: '#f59e0b', 'stroke-width': 0.022, opacity: 0.7
+      }));
+      g.appendChild(svgEl('line', {
+        x1: sl.x + sl.w, y1: sl.y, x2: sl.x, y2: sl.y + sl.h,
+        stroke: '#f59e0b', 'stroke-width': 0.022, opacity: 0.7
+      }));
+      // Center circle
+      g.appendChild(svgEl('circle', {
+        cx: cx.toFixed(4), cy: cy.toFixed(4), r: Math.min(sl.w, sl.h) * 0.18,
+        fill: '#fef08a', stroke: '#d97706', 'stroke-width': 0.025
+      }));
+      // Label
+      const txt = svgEl('text', {
+        x: cx.toFixed(4), y: (sl.y - 0.10).toFixed(4),
+        'text-anchor': 'middle', fill: '#92400e',
+        'font-size': '0.20px', 'font-weight': '700', 'font-family': 'system-ui,sans-serif'
+      });
+      txt.textContent = sl.label || 'Tragaluz';
+      g.appendChild(txt);
+
+      g.addEventListener('mousedown', e => {
+        if (_startDrag('skylight', sl.id, floorIdx, e)) e.stopPropagation();
+      });
+      g.addEventListener('click', e => {
+        if (PA.state.activeTool === 'erase') {
+          e.stopPropagation();
+          PA.saveUndo();
+          PA.state.floors[floorIdx].skylights = PA.state.floors[floorIdx].skylights.filter(x => x.id !== sl.id);
+          PA.canvas.render(); PA.setDirty();
+        }
+      });
+      g.addEventListener('contextmenu', e => {
+        e.preventDefault(); e.stopPropagation();
+        PA.contextMenu(e.clientX, e.clientY, [
+          { label: 'Eliminar tragaluz', danger: true, action: () => {
+            PA.saveUndo();
+            PA.state.floors[floorIdx].skylights = PA.state.floors[floorIdx].skylights.filter(x => x.id !== sl.id);
+            PA.canvas.render(); PA.setDirty();
+          }}
+        ]);
+      });
+
+      parentGroup.appendChild(g);
+    });
   }
 
   /* ── Floor list (panel) ──────────────────────────── */

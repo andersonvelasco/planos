@@ -349,3 +349,94 @@ body {
   #btn-export-json,
   #btn-import-json { display: none; }
 }
+
+/* ── Brújula de orientación ──────────────────────── */
+#compass-overlay {
+  position: absolute;
+  bottom: 70px;
+  right: 16px;
+  background: rgba(255,255,255,0.92);
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 6px 8px 4px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.13);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  z-index: 40;
+  user-select: none;
+  min-width: 82px;
+}
+#compass-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: #1e2a3a;
+  letter-spacing: 0.04em;
+}
+#compass-deg {
+  font-weight: 400;
+  color: #64748b;
+  font-size: 10px;
+}
+#compass-svg { display: block; }
+#compass-btns {
+  display: flex;
+  gap: 6px;
+  margin-top: 2px;
+}
+#compass-btns button {
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  width: 24px;
+  height: 22px;
+  font-size: 11px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #475569;
+  transition: background 0.15s;
+}
+#compass-btns button:hover { background: #e0e7ef; }
+
+/* ── Indicador RETILAP ───────────────────────────── */
+.retilap-indicator {
+  margin-top: 8px;
+  padding: 7px 8px 6px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 11px;
+}
+.retilap-title {
+  font-weight: 700;
+  color: #1e2a3a;
+  margin-bottom: 5px;
+  font-size: 11px;
+  letter-spacing: 0.03em;
+}
+.retilap-bar-wrap {
+  background: #e2e8f0;
+  border-radius: 4px;
+  height: 6px;
+  overflow: hidden;
+  margin-bottom: 4px;
+}
+.retilap-bar {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s, background 0.3s;
+  min-width: 4px;
+}
+.retilap-val {
+  font-size: 10.5px;
+  font-weight: 600;
+}
+.retilap-val.ok   { color: #15803d; }
+.retilap-val.warn { color: #b45309; }
+
+/* ── Handle de rotación de muebles ──────────────── */
+.furn-rot-handle { cursor: grab; }
+.furn-rot-handle:hover { filter: brightness(1.25); }

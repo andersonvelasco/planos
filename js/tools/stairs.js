@@ -9,7 +9,15 @@ PA.tools.stairs = (() => {
     _pt1 = null;
     _clearPreview();
     const shEl = document.getElementById('stairs-shape');
-    if (shEl) { _shape = shEl.value; shEl.onchange = () => { _shape = shEl.value; }; }
+    if (shEl) {
+      _shape = shEl.value;
+      const _toggleURunW = () => {
+        const lbl = document.getElementById('stairs-u-runw-lbl');
+        if (lbl) lbl.classList.toggle('hidden', _shape !== 'u');
+      };
+      _toggleURunW();
+      shEl.onchange = () => { _shape = shEl.value; _toggleURunW(); };
+    }
   }
   function deactivate() { _pt1 = null; _clearPreview(); }
   function _clearPreview() { document.getElementById('preview-layer').innerHTML = ''; }
@@ -35,6 +43,7 @@ PA.tools.stairs = (() => {
       const steps = PA.state.stairsSteps || 10;
       const horiz = w >= h;
       const shape = _shape || 'straight';
+      const uRunW = PA.state.stairsURunW || 0.30;
 
       PA.saveUndo();
       PA.activeFloor().stairs.push({
@@ -46,7 +55,8 @@ PA.tools.stairs = (() => {
         steps,
         horiz,
         direction: 'up',
-        shape
+        shape,
+        uRunW
       });
       _pt1 = null;
       _clearPreview();
@@ -73,8 +83,9 @@ PA.tools.stairs = (() => {
 
     const steps = PA.state.stairsSteps || 10;
     const shape = _shape || 'straight';
+    const uRunW = PA.state.stairsURunW || 0.30;
 
-    _drawShape(layer, x1, y1, x2, y2, w, h, steps, shape, '#6366f1', 'rgba(99,102,241,0.08)', 'rgba(99,102,241,0.20)');
+    _drawShape(layer, x1, y1, x2, y2, w, h, steps, shape, '#6366f1', 'rgba(99,102,241,0.08)', 'rgba(99,102,241,0.20)', uRunW);
 
     const lbl = document.createElementNS(NS, 'text');
     lbl.setAttribute('x', (x1+x2)/2); lbl.setAttribute('y', y1 - 0.1);
@@ -93,7 +104,7 @@ PA.tools.stairs = (() => {
   }
 
   /* ── Shape drawing (used by preview and floors.js) ── */
-  function _drawShape(layer, x1, y1, x2, y2, w, h, steps, shape, color, fill, landFill) {
+  function _drawShape(layer, x1, y1, x2, y2, w, h, steps, shape, color, fill, landFill, uRunW = 0.30) {
     const sw = 0.022;
 
     function R(rx,ry,rw,rh,f,stroke,extra) {
@@ -172,7 +183,7 @@ PA.tools.stairs = (() => {
       lt.textContent = 'DESCANSO'; layer.appendChild(lt);
 
     } else if (shape === 'u') {
-      const rw = w * 0.30, lh = h * 0.18;
+      const rw = w * uRunW, lh = h * 0.18;
       const steps1 = Math.ceil(steps/2), steps2 = Math.floor(steps/2);
       // Landing at top
       R(x1, y1, w, lh, landFill);

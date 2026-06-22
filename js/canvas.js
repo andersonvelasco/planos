@@ -289,6 +289,35 @@ PA.canvas = (() => {
     _hideProps();
   }
 
+  /* ── RETILAP: relación ventana/área de habitación ── */
+  function _retilapHTML(room, floor) {
+    if (!room || !(room.area > 0)) return '';
+    const WIN_H = 1.10;
+    let winArea = 0;
+    const roomSpan = Math.sqrt(room.area) * 1.4;
+    (floor.windows || []).forEach(w => {
+      const wall = (floor.walls || []).find(wl => wl.id === w.wallId);
+      if (!wall) return;
+      const midWx = (wall.x1 + wall.x2) / 2;
+      const midWy = (wall.y1 + wall.y2) / 2;
+      if (Math.hypot(midWx - room.x, midWy - room.y) < roomSpan) {
+        winArea += (w.width || 0.9) * WIN_H;
+      }
+    });
+    const ratio = winArea / room.area;
+    const pct   = (ratio * 100).toFixed(1);
+    const ok    = ratio >= 0.10;
+    const barW  = Math.min(ratio * 1000, 100).toFixed(1);
+    const barColor = ok ? '#22c55e' : ratio >= 0.06 ? '#f59e0b' : '#ef4444';
+    const icon  = ok ? '✓' : '⚠';
+    return `<div class="retilap-indicator">
+      <div class="retilap-title">Iluminación RETILAP</div>
+      <div class="retilap-bar-wrap"><div class="retilap-bar" style="width:${barW}%;background:${barColor}"></div></div>
+      <div class="retilap-val ${ok ? 'ok' : 'warn'}">${icon} ${pct}% de ${room.area.toFixed(1)}m² · mín. 10%</div>
+      <div style="font-size:10px;color:#64748b;margin-top:2px">${winArea.toFixed(2)}m² vidrio estimado</div>
+    </div>`;
+  }
+
   /* ── Properties panel ───────────────────────────── */
   function _showProps(type, id, floorIdx) {
     const sec   = document.getElementById('props-section');
@@ -348,7 +377,8 @@ PA.canvas = (() => {
              + `<div class="prop-row"><span class="prop-label">Piso</span>${sel('finish-piso',['ceramica','porcelanato','madera','concreto','vinilo','ninguno'],f.piso||'ceramica')}</div>`
              + `<div class="prop-row"><span class="prop-label">Cielo raso</span>${sel('finish-cielorraso',['pintura','drywall','pvc','ninguno'],f.cieloRaso||'pintura')}</div>`
              + `<div class="prop-row"><span class="prop-label">Pintura</span>${sel('finish-pintura',['vinilo','esmalte','ninguno'],f.pintura||'vinilo')}</div>`
-             + `<button class="btn-add" id="props-edit-room" style="margin-top:4px">✎ Editar nombre/área</button>`;
+             + `<button class="btn-add" id="props-edit-room" style="margin-top:4px">✎ Editar nombre/área</button>`
+             + _retilapHTML(r, floor);
         break;
       }
       case 'furniture': {
@@ -397,10 +427,32 @@ PA.canvas = (() => {
         const s = floor.stairs ? floor.stairs.find(x => x.id === id) : null;
         if (!s) return;
         const w = Math.abs(s.x2 - s.x1), h = Math.abs(s.y2 - s.y1);
+        const shapeLabels = { straight:'Recta', 'l-right':'En L (derecha)', 'l-left':'En L (izquierda)', u:'En U' };
         name = 'Escalera';
-        html = row('Peldaños', s.steps)
+        html = row('Forma',    shapeLabels[s.shape] || 'Recta')
+             + row('Peldaños', s.steps)
              + row('Ancho',    w.toFixed(2) + ' m')
              + row('Largo',    h.toFixed(2) + ' m');
+        if (s.shape === 'u') html += row('Corredor', Math.round((s.uRunW || 0.30) * 100) + '% ancho');
+        break;
+      }
+      case 'lightwell': {
+        const lw = (floor.lightwells || []).find(x => x.id === id);
+        if (!lw) return;
+        name = 'Patio de Luz';
+        html = row('Ancho', lw.w.toFixed(2) + ' m')
+             + row('Largo', lw.h.toFixed(2) + ' m')
+             + row('Área',  (lw.w * lw.h).toFixed(2) + ' m²')
+             + row('Tipo',  lw.label || 'Patio de Luz');
+        break;
+      }
+      case 'skylight': {
+        const sl = (floor.skylights || []).find(x => x.id === id);
+        if (!sl) return;
+        name = 'Tragaluz';
+        html = row('Ancho', sl.w.toFixed(2) + ' m')
+             + row('Largo', sl.h.toFixed(2) + ' m')
+             + row('Área',  (sl.w * sl.h).toFixed(2) + ' m²');
         break;
       }
     }
@@ -505,6 +557,8 @@ PA.canvas = (() => {
     else if (sel.type === 'furniture' && floor.furniture)  remove(floor.furniture,  sel.id);
     else if (sel.type === 'electrical'&& floor.electrical) remove(floor.electrical, sel.id);
     else if (sel.type === 'pipe'      && floor.pipes)      remove(floor.pipes,      sel.id);
+    else if (sel.type === 'lightwell' && floor.lightwells) remove(floor.lightwells, sel.id);
+    else if (sel.type === 'skylight'  && floor.skylights)  remove(floor.skylights,  sel.id);
 
     clearSelection();
     render();

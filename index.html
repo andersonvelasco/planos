@@ -91,10 +91,28 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="11" width="20" height="7" rx="1"/><line x1="6" y1="11" x2="6" y2="18"/><line x1="18" y1="11" x2="18" y2="18"/><path d="M6 8h12"/><path d="M6 8v3M18 8v3"/></svg>
         <span>Mueble</span>
       </button>
+      <button class="tool-btn" data-tool="lightwell" title="Patio de Luz">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="1"/><line x1="12" y1="3" x2="12" y2="7"/><line x1="12" y1="17" x2="12" y2="21"/><line x1="3" y1="12" x2="7" y2="12"/><line x1="17" y1="12" x2="21" y2="12"/><circle cx="12" cy="12" r="3"/></svg>
+        <span>Patio</span>
+      </button>
+      <button class="tool-btn" data-tool="skylight" title="Tragaluz">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><line x1="4" y1="4" x2="20" y2="20"/><line x1="20" y1="4" x2="4" y2="20"/><circle cx="12" cy="12" r="2" fill="currentColor" stroke="none"/></svg>
+        <span>Tragaluz</span>
+      </button>
       <button class="tool-btn" data-tool="erase" title="Borrar elemento (E)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 20H7L3 16l10-10 7 7-3.5 3.5"/><path d="M6.5 17.5l5-5"/></svg>
         <span>Borrar</span>
       </button>
+    </div>
+
+    <!-- Lightwell Properties -->
+    <div id="lightwell-props" class="props-group hidden">
+      <div class="tip">Clic pt.1 · Clic pt.2 para definir el patio de luz</div>
+    </div>
+
+    <!-- Skylight Properties -->
+    <div id="skylight-props" class="props-group hidden">
+      <div class="tip">Clic pt.1 · Clic pt.2 para definir el tragaluz</div>
     </div>
 
     <!-- Wall Properties -->
@@ -163,6 +181,15 @@
           <option value="12">12</option>
           <option value="14">14</option>
           <option value="16">16</option>
+        </select>
+      </label>
+      <label id="stairs-u-runw-lbl" class="hidden">Ancho corredor
+        <select id="stairs-u-runw">
+          <option value="0.20">20% — muy angosto</option>
+          <option value="0.25">25% — angosto</option>
+          <option value="0.30" selected>30% — normal</option>
+          <option value="0.35">35% — amplio</option>
+          <option value="0.40">40% — muy amplio</option>
         </select>
       </label>
       <div class="tip">Clic pt.1 · Clic pt.2 define el rectángulo</div>
@@ -412,6 +439,37 @@
   </div>
 </div>
 
+<!-- Compass Overlay -->
+<div id="compass-overlay">
+  <div id="compass-title">N <span id="compass-deg">0°</span></div>
+  <svg id="compass-svg" width="72" height="72" viewBox="0 0 72 72">
+    <g id="compass-rose">
+      <!-- Background circle -->
+      <circle cx="36" cy="36" r="32" fill="#1e2a3a" stroke="#3b82f6" stroke-width="1.5" opacity="0.92"/>
+      <!-- Cardinal tick marks -->
+      <line x1="36" y1="6" x2="36" y2="14" stroke="#94a3b8" stroke-width="1.5"/>
+      <line x1="36" y1="58" x2="36" y2="66" stroke="#94a3b8" stroke-width="1.5"/>
+      <line x1="6" y1="36" x2="14" y2="36" stroke="#94a3b8" stroke-width="1.5"/>
+      <line x1="58" y1="36" x2="66" y2="36" stroke="#94a3b8" stroke-width="1.5"/>
+      <!-- N arrow (red tip pointing up = north) -->
+      <polygon points="36,8 32,28 36,24 40,28" fill="#ef4444"/>
+      <!-- S arrow (white tip pointing down) -->
+      <polygon points="36,64 32,44 36,48 40,44" fill="#e2e8f0" opacity="0.7"/>
+      <!-- Cardinal letters -->
+      <text x="36" y="5" text-anchor="middle" font-size="8" font-weight="700" fill="#ef4444" font-family="system-ui,sans-serif">N</text>
+      <text x="36" y="71" text-anchor="middle" font-size="8" font-weight="700" fill="#94a3b8" font-family="system-ui,sans-serif">S</text>
+      <text x="70" y="39" text-anchor="middle" font-size="8" font-weight="700" fill="#94a3b8" font-family="system-ui,sans-serif">E</text>
+      <text x="2" y="39" text-anchor="middle" font-size="8" font-weight="700" fill="#94a3b8" font-family="system-ui,sans-serif">O</text>
+      <!-- Center dot -->
+      <circle cx="36" cy="36" r="3" fill="#3b82f6"/>
+    </g>
+  </svg>
+  <div id="compass-btns">
+    <button id="compass-ccw" title="Rotar Norte -15°">◀</button>
+    <button id="compass-cw" title="Rotar Norte +15°">▶</button>
+  </div>
+</div>
+
 <!-- Scripts — order matters -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
@@ -428,6 +486,8 @@
 <script src="js/tools/room.js"></script>
 <script src="js/tools/dimension.js"></script>
 <script src="js/tools/stairs.js"></script>
+<script src="js/tools/lightwell.js"></script>
+<script src="js/tools/skylight.js"></script>
 <script src="js/structural.js"></script>
 <script src="js/tools/electrical.js"></script>
 <script src="js/tools/pipes.js"></script>

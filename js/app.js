@@ -26,6 +26,8 @@ const PA = (() => {
     doorWidth: 0.9,
     windowWidth: 0.9,
     stairsSteps: 10,
+    stairsURunW: 0.30,
+    northAngle: 0,
     floors: [],
     prices: {
       bloque:    2200,
@@ -72,7 +74,9 @@ const PA = (() => {
       stairs: [],
       furniture: [],
       electrical: [],
-      pipes: []
+      pipes: [],
+      lightwells: [],
+      skylights: []
     };
   }
 
@@ -352,6 +356,9 @@ const PA = (() => {
     document.getElementById('stairs-steps').addEventListener('change', e => {
       state.stairsSteps = parseInt(e.target.value, 10);
     });
+    document.getElementById('stairs-u-runw').addEventListener('change', e => {
+      state.stairsURunW = parseFloat(e.target.value);
+    });
 
     // Material prices
     document.getElementById('btn-edit-prices').onclick = () => PA.costs.showPricesModal();
@@ -374,6 +381,22 @@ const PA = (() => {
 
     updateCanvasInfo();
     setTool('select');
+
+    // Compass
+    const compassCW  = document.getElementById('compass-cw');
+    const compassCCW = document.getElementById('compass-ccw');
+    if (compassCW && compassCCW) {
+      compassCW.addEventListener('click',  () => _rotateCompass(15));
+      compassCCW.addEventListener('click', () => _rotateCompass(-15));
+    }
+  }
+
+  function _rotateCompass(delta) {
+    state.northAngle = ((state.northAngle || 0) + delta + 360) % 360;
+    const rose = document.getElementById('compass-rose');
+    const deg  = document.getElementById('compass-deg');
+    if (rose) rose.setAttribute('transform', `rotate(${state.northAngle},36,36)`);
+    if (deg)  deg.textContent = state.northAngle + '°';
   }
 
   function updateCanvasInfo() {
@@ -408,6 +431,10 @@ const PA = (() => {
     if (elecPanel)  elecPanel.classList.toggle('hidden', tool !== 'electrical');
     const pipesPanel = document.getElementById('pipes-props');
     if (pipesPanel) pipesPanel.classList.toggle('hidden', tool !== 'pipes');
+    const lwPanel = document.getElementById('lightwell-props');
+    if (lwPanel) lwPanel.classList.toggle('hidden', tool !== 'lightwell');
+    const slPanel = document.getElementById('skylight-props');
+    if (slPanel) slPanel.classList.toggle('hidden', tool !== 'skylight');
 
     // Update body class for cursor
     document.body.className = 'tool-' + tool;
@@ -424,7 +451,9 @@ const PA = (() => {
       erase:     'Clic en cualquier elemento para eliminarlo',
       furniture:  'Selecciona un mueble del panel y haz clic para colocar · Clic derecho: rotar/eliminar',
       electrical: 'Selecciona símbolo eléctrico y haz clic en el plano para colocar (RETIE)',
-      pipes:      'Selecciona tipo y diámetro · Clic pt.A → clic pt.B · Doble clic para terminar cadena'
+      pipes:      'Selecciona tipo y diámetro · Clic pt.A → clic pt.B · Doble clic para terminar cadena',
+      lightwell:  'Clic pt.1 · Clic pt.2 para definir el patio de luz (min 0.30m × 0.30m)',
+      skylight:   'Clic pt.1 · Clic pt.2 para definir el tragaluz (min 0.20m × 0.20m)'
     };
     document.getElementById('tool-hint').textContent = hints[tool] || '';
 

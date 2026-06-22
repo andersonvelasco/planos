@@ -70,6 +70,8 @@ PA.storage = (() => {
       if (!f.furniture)   f.furniture   = [];
       if (!f.electrical)  f.electrical  = [];
       if (!f.pipes)       f.pipes       = [];
+      if (!f.lightwells)  f.lightwells  = [];
+      if (!f.skylights)   f.skylights   = [];
       f.rooms.forEach(r => {
         if (!r.finishes) r.finishes = { piso:'ceramica', cieloRaso:'pintura', pintura:'vinilo' };
       });

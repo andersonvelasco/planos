@@ -183,3 +183,19 @@
   font-size: 10px;
   color: #475569;
 }
+
+/* ── Patio de Luz (lightwell) ────────────────────── */
+.tool-lightwell #main-svg,
+.tool-skylight  #main-svg { cursor: crosshair; }
+
+.lightwell-hatch { stroke: #93c5fd; stroke-width: 0.012; opacity: 0.6; }
+.lightwell-border { fill: rgba(147,197,253,0.14); stroke: #3b82f6; stroke-width: 0.030; stroke-dasharray: 0.12 0.06; }
+.lightwell-label { fill: #1d4ed8; font-size: 0.18px; font-family: system-ui,sans-serif; font-weight: 600; }
+.lightwell-group.selected .lightwell-border { stroke: #f59e0b; stroke-width: 0.045; }
+
+/* ── Tragaluz (skylight) ─────────────────────────── */
+.skylight-fill  { fill: rgba(254,243,199,0.50); stroke: #d97706; stroke-width: 0.028; }
+.skylight-cross { stroke: #d97706; stroke-width: 0.020; opacity: 0.8; }
+.skylight-dot   { fill: #f59e0b; }
+.skylight-label { fill: #92400e; font-size: 0.16px; font-family: system-ui,sans-serif; font-weight: 600; }
+.skylight-group.selected .skylight-fill { stroke: #f59e0b; stroke-width: 0.045; }

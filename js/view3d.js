@@ -249,29 +249,130 @@ PA.view3d = (() => {
         _scene.add(tile);
       });
 
-      /* Escaleras (rampa simple) */
+      /* Escaleras — shape-aware */
       (floor.stairs || []).forEach(st => {
         const sw = Math.abs(st.x2 - st.x1), sd = Math.abs(st.y2 - st.y1);
         if (sw < 0.1 || sd < 0.1) return;
-        const rMat = new THREE.MeshPhongMaterial({ color: 0xc09a6a, shininess: 20 });
-        const ramp = new THREE.Mesh(new THREE.BoxGeometry(sw, 0.1, sd), rMat);
-        ramp.position.set((st.x1+st.x2)/2, baseY + 0.05, (st.y1+st.y2)/2);
-        ramp.castShadow = true;
-        _scene.add(ramp);
-        // Peldaños como líneas de cajas planas
-        const steps = st.steps || 10;
-        const stepD = sd / steps;
-        const stepH = wallH / steps;
-        for (let s = 0; s < steps; s++) {
-          const sg = new THREE.BoxGeometry(sw - 0.04, 0.04, stepD - 0.02);
-          const sm = new THREE.Mesh(sg, new THREE.MeshPhongMaterial({ color: 0xb08058 }));
-          sm.position.set((st.x1+st.x2)/2, baseY + stepH * s + 0.04, st.y1 + stepD * s + stepD/2);
-          _scene.add(sm);
+        const shape  = st.shape || 'straight';
+        const steps  = st.steps || 10;
+        const uRunW  = st.uRunW || 0.30;
+        const stepH  = wallH / steps;
+        const rMat   = new THREE.MeshPhongMaterial({ color: 0xc09a6a, shininess: 20 });
+        const landMat= new THREE.MeshPhongMaterial({ color: 0xd4b896, shininess: 25 });
+
+        const addBox = (cx, cy, cz, bw, bh, bd, mat) => {
+          const m = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, bd), mat);
+          m.position.set(cx, baseY + cy, cz);
+          m.castShadow = true;
+          _scene.add(m);
+        };
+
+        if (shape === 'straight') {
+          // Rampa base
+          addBox((st.x1+st.x2)/2, 0.05, (st.y1+st.y2)/2, sw, 0.10, sd, rMat);
+          // Peldaños individuales
+          const isH = sw >= sd;
+          for (let s = 0; s < steps; s++) {
+            const sh = stepH * s + 0.04;
+            if (isH) {
+              const sW = sw / steps;
+              addBox(st.x1 + sW*s + sW/2, sh, (st.y1+st.y2)/2, sW-0.02, 0.04, sd-0.02, new THREE.MeshPhongMaterial({ color: 0xb08058 }));
+            } else {
+              const sD = sd / steps;
+              addBox((st.x1+st.x2)/2, sh, st.y1 + sD*s + sD/2, sw-0.02, 0.04, sD-0.02, new THREE.MeshPhongMaterial({ color: 0xb08058 }));
+            }
+          }
+
+        } else if (shape === 'u') {
+          const rw = sw * uRunW, lh = sd * 0.18;
+          const runH = sd - lh;
+          const steps1 = Math.ceil(steps/2), steps2 = Math.floor(steps/2);
+          // Descanso superior
+          addBox((st.x1+st.x2)/2, wallH - 0.06, st.y1 + lh/2, sw, 0.12, lh, landMat);
+          // Corredor izquierdo
+          for (let s = 0; s < steps1; s++) {
+            const sD = runH / steps1;
+            addBox(st.x1 + rw/2, stepH*s + 0.04, st.y1 + lh + sD*s + sD/2, rw-0.02, 0.04, sD-0.02, rMat);
+          }
+          // Corredor derecho
+          for (let s = 0; s < steps2; s++) {
+            const sD = runH / steps2;
+            addBox(st.x2 - rw/2, stepH*s + 0.04, st.y1 + lh + sD*s + sD/2, rw-0.02, 0.04, sD-0.02, rMat);
+          }
+
+        } else if (shape === 'l-right') {
+          const rh = sd * 0.42, rw = sw * 0.42;
+          const r1w = sw - rw;
+          const steps1 = Math.ceil(steps/2), steps2 = Math.floor(steps/2);
+          // Run 1 (horizontal inferior)
+          for (let s = 0; s < steps1; s++) {
+            const sW = r1w / steps1;
+            addBox(st.x1 + sW*s + sW/2, stepH*s + 0.04, st.y2 - rh/2, sW-0.02, 0.04, rh-0.02, rMat);
+          }
+          // Descanso
+          addBox(st.x2 - rw/2, stepH*steps1 - 0.06, st.y2 - rh/2, rw, 0.12, rh, landMat);
+          // Run 2 (vertical derecho)
+          for (let s = 0; s < steps2; s++) {
+            const sD = (sd - rh) / steps2;
+            addBox(st.x2 - rw/2, stepH*(steps1+s) + 0.04, st.y1 + sD*s + sD/2, rw-0.02, 0.04, sD-0.02, rMat);
+          }
+
+        } else if (shape === 'l-left') {
+          const rh = sd * 0.42, rw = sw * 0.42;
+          const r1w = sw - rw;
+          const steps1 = Math.ceil(steps/2), steps2 = Math.floor(steps/2);
+          // Run 1 (horizontal inferior)
+          for (let s = 0; s < steps1; s++) {
+            const sW = r1w / steps1;
+            addBox(st.x1 + rw + sW*s + sW/2, stepH*s + 0.04, st.y2 - rh/2, sW-0.02, 0.04, rh-0.02, rMat);
+          }
+          // Descanso
+          addBox(st.x1 + rw/2, stepH*steps1 - 0.06, st.y2 - rh/2, rw, 0.12, rh, landMat);
+          // Run 2 (vertical izquierdo)
+          for (let s = 0; s < steps2; s++) {
+            const sD = (sd - rh) / steps2;
+            addBox(st.x1 + rw/2, stepH*(steps1+s) + 0.04, st.y1 + sD*s + sD/2, rw-0.02, 0.04, sD-0.02, rMat);
+          }
         }
       });
 
       /* Mobiliario */
       _buildFurniture(floor, baseY, THREE);
+
+      /* Patios de luz — hueco abierto (plano semitransparente en el suelo) */
+      (floor.lightwells || []).forEach(lw => {
+        const lwMat = new THREE.MeshPhongMaterial({
+          color: 0x93c5fd, opacity: 0.22, transparent: true, side: THREE.DoubleSide
+        });
+        const lwMesh = new THREE.Mesh(new THREE.PlaneGeometry(lw.w, lw.h), lwMat);
+        lwMesh.rotation.x = -Math.PI / 2;
+        lwMesh.position.set(lw.x + lw.w / 2, baseY + 0.02, lw.y + lw.h / 2);
+        _scene.add(lwMesh);
+        // Marco perimetral visible
+        const edgeMat = new THREE.LineBasicMaterial({ color: 0x3b82f6, linewidth: 2 });
+        const edgeGeo = new THREE.EdgesGeometry(new THREE.BoxGeometry(lw.w, 0.02, lw.h));
+        const edges   = new THREE.LineSegments(edgeGeo, edgeMat);
+        edges.position.set(lw.x + lw.w / 2, baseY + 0.01, lw.y + lw.h / 2);
+        _scene.add(edges);
+      });
+
+      /* Tragaluces — caja transparente sobre el techo */
+      (floor.skylights || []).forEach(sl => {
+        const slH  = 0.25;
+        const slMat = new THREE.MeshPhongMaterial({
+          color: 0x93c5fd, opacity: 0.38, transparent: true,
+          shininess: 90, specular: 0xffffff, side: THREE.DoubleSide
+        });
+        const slMesh = new THREE.Mesh(new THREE.BoxGeometry(sl.w, slH, sl.h), slMat);
+        slMesh.position.set(sl.x + sl.w / 2, baseY + WALL_H + slH / 2, sl.y + sl.h / 2);
+        slMesh.castShadow = false;
+        _scene.add(slMesh);
+        const frameMat = new THREE.LineBasicMaterial({ color: 0xd97706, linewidth: 2 });
+        const frameGeo = new THREE.EdgesGeometry(new THREE.BoxGeometry(sl.w, slH, sl.h));
+        const frame    = new THREE.LineSegments(frameGeo, frameMat);
+        frame.position.copy(slMesh.position);
+        _scene.add(frame);
+      });
     });
 
     const cx = isFinite(gMinX) ? (gMinX + gMaxX) / 2 : 3;
