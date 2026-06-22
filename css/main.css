@@ -16,7 +16,7 @@
   --clr-room: rgba(59,130,246,0.08);
   --clr-dim: #dc2626;
   --clr-select: #f59e0b;
-  --toolbar-w: 68px;
+  --toolbar-w: 148px;
   --panel-w: 272px;
   --header-h: 46px;
   --radius: 6px;
@@ -331,19 +331,16 @@ body {
   .btn-panel-toggle { display: none !important; }
 }
 
-/* Phones: compact toolbar, hide some labels */
+/* Phones: compact toolbar */
 @media (max-width: 600px) {
   :root {
-    --toolbar-w: 54px;
+    --toolbar-w: 108px;
     --header-h: 42px;
   }
 
   .logo-text { display: none; }
 
   .btn-header { padding: 4px 8px; font-size: 11px; }
-
-  .tool-btn span { display: none; }
-  .tool-btn { padding: 9px 4px; }
 
   .header-right { gap: 4px; }
 

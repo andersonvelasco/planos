@@ -643,7 +643,14 @@ PA.floors = (() => {
     if (!elec.length) return;
     const g = svgEl('g', { class: 'elec-layer' });
     elec.forEach(item => {
-      const ig = svgEl('g', { id: item.id, class: 'elec-symbol draggable-el', 'data-selectable': '1' });
+      const rot = (item.rotation || 0) * 180 / Math.PI;
+      const ig = svgEl('g', {
+        id: item.id,
+        class: 'elec-symbol draggable-el',
+        'data-selectable': '1',
+        transform: rot ? `rotate(${rot.toFixed(1)},${item.x},${item.y})` : undefined
+      });
+      if (!rot) ig.removeAttribute('transform'); // keep DOM clean when no rotation
       if (PA.tools.electrical) {
         ig.innerHTML = PA.tools.electrical.svgHTML(item.type, item.x, item.y, PA.tools.electrical.SZ);
       }
@@ -661,6 +668,12 @@ PA.floors = (() => {
       ig.addEventListener('contextmenu', e => {
         e.preventDefault(); e.stopPropagation();
         PA.contextMenu(e.clientX, e.clientY, [
+          { label: 'Rotar 90°', action: () => {
+            PA.saveUndo();
+            item.rotation = ((item.rotation || 0) + Math.PI / 2) % (Math.PI * 2);
+            PA.canvas.render(); PA.setDirty();
+          }},
+          null,
           { label: 'Eliminar símbolo', danger: true, action: () => {
             PA.saveUndo();
             PA.state.floors[floorIdx].electrical = PA.state.floors[floorIdx].electrical.filter(x => x.id !== item.id);

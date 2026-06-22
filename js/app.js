@@ -465,6 +465,8 @@ const PA = (() => {
     else if (key === 'i') setTool('furniture');
     else if (key === 'l') setTool('electrical');
     else if (key === 'p') setTool('pipes');
+    else if (key === ']') { if (PA.canvas) PA.canvas.rotateSelected(1);  }   // rotar 90° horario
+    else if (key === '[') { if (PA.canvas) PA.canvas.rotateSelected(-1); }   // rotar 90° antihorario
     else if (key === 'delete' || key === 'backspace') {
       if (state.selection) PA.canvas.deleteSelected();
     }

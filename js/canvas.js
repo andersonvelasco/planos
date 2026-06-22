@@ -366,8 +366,11 @@ PA.canvas = (() => {
         if (!sym) return;
         const cat = PA.tools.electrical ? PA.tools.electrical.getByType(sym.type) : null;
         name = cat ? cat.label : 'Símbolo eléctrico';
+        const rotDeg = Math.round((sym.rotation || 0) * 180 / Math.PI);
         html = row('Tipo', name)
-             + row('Posición', sym.x.toFixed(2) + 'm, ' + sym.y.toFixed(2) + 'm');
+             + row('Rotación', rotDeg + '°')
+             + row('Posición', sym.x.toFixed(2) + 'm, ' + sym.y.toFixed(2) + 'm')
+             + `<button class="btn-add" id="props-rotate-elec" style="margin-top:4px">↻ Rotar 90°</button>`;
         break;
       }
       case 'pipe': {
@@ -442,17 +445,37 @@ PA.canvas = (() => {
     _wireFinish('finish-cielorraso','cieloRaso');
     _wireFinish('finish-pintura',   'pintura');
 
-    // Wire furniture rotate button
+    // Wire rotate buttons (furniture + electrical)
     const rotBtn = document.getElementById('props-rotate-furn');
-    if (rotBtn) rotBtn.onclick = () => {
-      const furn = (floor.furniture || []).find(x => x.id === id);
+    if (rotBtn) rotBtn.onclick = () => rotateSelected(1);
+    const rotElecBtn = document.getElementById('props-rotate-elec');
+    if (rotElecBtn) rotElecBtn.onclick = () => rotateSelected(1);
+  }
+
+  /* ── Rotate selected element 90° ────────────────── */
+  function rotateSelected(dir = 1) {
+    const sel = PA.state.selection;
+    if (!sel) return;
+    const floor = PA.state.floors[sel.floorIdx];
+    if (!floor) return;
+
+    if (sel.type === 'furniture') {
+      const furn = (floor.furniture || []).find(x => x.id === sel.id);
       if (!furn) return;
       PA.saveUndo();
-      furn.rotation = ((furn.rotation || 0) + Math.PI / 2) % (Math.PI * 2);
+      furn.rotation = ((furn.rotation || 0) + dir * Math.PI / 2 + Math.PI * 2) % (Math.PI * 2);
       [furn.w, furn.h] = [furn.h, furn.w];
-      PA.canvas.render(); PA.setDirty();
-      _showProps(type, id, floorIdx);
-    };
+    } else if (sel.type === 'electrical') {
+      const sym = (floor.electrical || []).find(x => x.id === sel.id);
+      if (!sym) return;
+      PA.saveUndo();
+      sym.rotation = ((sym.rotation || 0) + dir * Math.PI / 2 + Math.PI * 2) % (Math.PI * 2);
+    } else {
+      return;
+    }
+    PA.canvas.render();
+    PA.setDirty();
+    _showProps(sel.type, sel.id, sel.floorIdx);
   }
 
   function _hideProps() {
@@ -491,6 +514,6 @@ PA.canvas = (() => {
   return {
     init, render, applyTransform, updateGrid,
     setZoom, fitView,
-    selectElement, clearSelection, deleteSelected
+    selectElement, clearSelection, deleteSelected, rotateSelected
   };
 })();

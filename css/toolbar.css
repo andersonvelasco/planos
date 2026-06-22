@@ -4,12 +4,14 @@
   background: var(--clr-toolbar);
   display: flex;
   flex-direction: column;
-  align-items: center;
-  padding: 8px 0 8px;
+  align-items: stretch;
+  padding: 6px 0;
   gap: 0;
   flex-shrink: 0;
   overflow-y: auto;
   overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,.12) transparent;
 }
 
 .tool-section-label {
@@ -23,14 +25,14 @@
 }
 
 .tool-group {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   width: 100%;
   gap: 1px;
+  padding: 0 2px;
 }
 
 .tool-btn {
-  width: 100%;
   background: none;
   border: none;
   color: #94a3b8;
@@ -40,16 +42,25 @@
   align-items: center;
   justify-content: center;
   gap: 3px;
-  padding: 8px 4px 7px;
+  padding: 9px 4px 8px;
   font-size: 10px;
   transition: background .12s, color .12s;
   border-left: 2px solid transparent;
+  border-radius: 5px;
   position: relative;
+  width: 100%;
 }
 .tool-btn svg {
   width: 20px;
   height: 20px;
   flex-shrink: 0;
+}
+.tool-btn span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  display: block;
 }
 .tool-btn:hover {
   background: var(--clr-toolbar-hover);
@@ -64,7 +75,7 @@
 /* Props panels */
 .props-group {
   width: 100%;
-  padding: 6px 8px;
+  padding: 6px 10px;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -122,13 +133,16 @@
 }
 
 /* ── Furniture Catalog ──────────────────────────── */
-#furn-catalog {
+#furn-catalog,
+#elec-catalog {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  max-height: 320px;
+  max-height: 380px;
   overflow-y: auto;
   padding-right: 2px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,.15) transparent;
 }
 .fcat-section { display: flex; flex-direction: column; gap: 3px; }
 .fcat-title {
